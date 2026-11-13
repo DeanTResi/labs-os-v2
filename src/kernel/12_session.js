@@ -6,8 +6,11 @@
 
   OS.sessionOpen = () => !!sessionLayer;
   OS.sessionKey = (e) => sessionLayer?.key?.(e) ?? false;
+  // While a session layer is up, the desktop behind it takes no input at all.
+  const behind = () => ['bar', 'desk', 'notes', 'empty'].map((id) => document.getElementById(id));
   function layer(el, key, onClose) {
     closeLayer();
+    behind().forEach((n) => n?.setAttribute('inert', ''));
     overlayRoot.append(el);
     sessionLayer = { el, key, onClose };
     return sessionLayer;
@@ -15,6 +18,7 @@
   function closeLayer() {
     if (!sessionLayer) return;
     const s = sessionLayer; sessionLayer = null;
+    behind().forEach((n) => n?.removeAttribute('inert'));
     s.el.remove(); s.onClose?.();
     const f = OS.wm.focused(); if (f) f.emit('focus');
   }
@@ -30,7 +34,7 @@
       ['Gold', 'Houses 158, 152, 135 and 178 are reliable. I visit them at weekends.'],
       ['Not worse than main', 'I checked. You are not worse than main. Nobody said better.'],
       ['Two viewers', 'There are two 3D viewers. They have never met. One of them has textures.'],
-      ['Width', 'Every extension is 3 m wide. It has always been 3 m. Only the depth moves.'],
+      ['Width', 'Every extension is 3 m wide. No width exists anywhere in the payload. Both are true.'],
       ['Dependencies', 'A linter moved from 1.89.0 to 1.90.0. Life goes on.'],
       ['Partial gables', 'A gap in a gable line is valid. I looked it up. Twice.'],
       ['Context window', 'I am at 81%. I will compact soon. I will not remember this. Neither will you.'],
@@ -46,7 +50,7 @@
     quips: [
       'I am still 32 by 32. They offered me vectors. I said no.',
       'Everyone else got a redesign. I got a tiling window manager.',
-      'SUPER is Alt. I am also Alt. Alternative.',
+      'SUPER is Alt. The browser kept the real Super key. I was not consulted.',
       'I was composed. Twenty-two stages. I came out as a brick.',
       'Ask me about the daily cap. Actually, don\'t. It costs money.',
       'My approach is luna_brick_1. Its output never changes.',
@@ -65,7 +69,6 @@
   OS.brickySay = (text) => {
     OS.notify({ app: 'bricky', bricky: true, title: 'Bricky', body: text || OS.pick(B.quips), timeout: 5000 });
   };
-  OS.brickyCopy = B;
   function scheduleBricky() {
     const wait = (60000 + Math.random() * 70000) / OS.speed;
     setTimeout(() => {
@@ -187,18 +190,18 @@
 
   // ---------- boot ----------
   const BOOT = [
-    ['hi', 'Labs OS 2.0 (Composed) · linux-labs 6.22.0-composed · x86_64'],
+    ['hi', 'Labs OS 2.0 (Composed) · kernel 6.22.0-composed · x86_64'],
     ['dim', 'Upgrading from Labs OS 3.1 (Evaluation). Version numbers are display numbers. They renumber.'],
     ['dim', 'Loading initial ramdisk (four houses you can trust)...'],
     ['ok', 'Reached target Local File Systems. /gold mounted read-only.'],
     ['ok', 'Started Journal Service. Every approach recorded. None renamed.'],
     ['ok', 'Started Spend Ledger Daemon ($100.00 a day, UTC).'],
-    ['ok', 'Started Composer Pipeline Manager (22 stages, P1 to M4).'],
-    ['ok', 'Started Configurator v3 (Vite, Inertia, React, two 3D viewers).'],
+    ['ok', 'Started Composer Pipeline Manager (22 stages, P1 to M4, two 3D viewers, one with textures).'],
+    ['ok', 'Started Configurator v3 (Vite, Inertia, React).'],
     ['wait', 'A start job is running for Configurator redesign, round 6 (5 of ∞)'],
-    ['ok', 'Finished Configurator redesign, round 6. Round 7 booked.'],
+    ['ok', 'Deferred Configurator redesign, round 6. Round 5 is still open.'],
     ['ok', 'Started Gristle Review Daemon (patience: 1).'],
-    ['fail', 'Failed to start S3 CORS. See \'systemctl status s3-cors\' for details.'],
+    ['fail', 'Failed to start bucket-cors.service. The image bucket has no CORS. See \'brickctl status bucket-cors\'.'],
     ['ok', 'Started Bricky (pid 1, 32x32, unupgraded by choice).'],
     ['ok', 'Started Lane Supervisor (3 lanes waiting on a background job).'],
     ['ok', 'Mounted /home/researcher/labs (6,363 commits, every one rebased).'],
@@ -275,5 +278,6 @@
     OS.boot(() => OS.startSession?.());
   };
 
-  OS.startBricky = scheduleBricky;
+  let brickyStarted = false;
+  OS.startBricky = () => { if (!brickyStarted) { brickyStarted = true; scheduleBricky(); } };
 })();

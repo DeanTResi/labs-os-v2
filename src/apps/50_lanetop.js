@@ -168,11 +168,11 @@
   const STATE_LABEL = { spawning: 'spawning', building: 'building', reviewing: 'reviewing', ci: 'waiting on CI', stalled: 'stalled', done: 'done', killed: 'killed' };
   const TOK = { spawning: [45, 20], building: [95, 40], reviewing: [185, 70], ci: [2, 2], stalled: [0, 0], done: [0, 0], killed: [0, 0] };
   const DUR = { spawning: [3, 5], building: [10, 22], reviewing: [7, 14], ci: [8, 16], done: [24, 30], killed: [1.4, 1.4], stalled: [Infinity, Infinity] };
-  const WAITS = ['gh pr checks --watch', 'bin/rspec_all, in the background', 'a reviewer subagent', 'npm run check:ci', 'a CI watch on a cancelled run', 'sleep 300 && gh pr view'];
+  const WAITS = ['pr checks --watch', 'bin/rspec_all, in the background', 'a reviewer subagent', 'npm run check:ci', 'a CI watch on a cancelled run', 'sleep 300 && pr view'];
   const SAYS = {
-    spawning: ['Reading AGENTS.md.', 'Reading CLAUDE.md, which says to read AGENTS.md.'],
+    spawning: ['Reading AGENTS.md.', 'Reading CLOD.md, which says to read AGENTS.md.'],
     building: ['Running only the specs for the files I changed.', 'Rebasing on main. No merge commits.', 'craft cleanup', 'Writing the failing test first.', 'bundle exec standardrb --fix', 'Touching only what the card asks for.'],
-    reviewing: ['Spec compliance: passed.', 'Craft review: one comment restates the code.', 'Production review: no blocking findings.', 'Gristle: 4 findings, 1 of them grumpy.'],
+    reviewing: ['Spec compliance: passed.', 'Craft review: one comment restates the code.', 'Production review: no blocking findings.', 'Gristle: 4 findings. All grumpy. One fair.'],
     ci: ['Frontend Checks: 14 of 15. The 15th is the design-sync gate.', 'RSpec: 2 of 8 shards done.', 'Waiting for the Lookbook coverage check.'],
     stalled: ['I will check back when CI finishes.', 'I will continue once the specs finish.', 'Waiting for the background job to report back.'],
     done: ['Merged by rebase. Not worse than main.'],
@@ -195,10 +195,18 @@
   // ---------- the simulation ----------
   function makeSim(rnd) {
     const S = {
-      t: 0, rate: 1000, lanes: [], sel: 0, scroll: 0, log: [], total: [], peak: 0, nextCard: 2750, nextPr: 2604,
-      disk: 74.2, diskShown: 74.2, alert80: false, alert90: false, pruning: null, full: false, reaped: 0, reportedGone: 0, hover: null,
+      t: 0, rate: 1000, lanes: [], sel: 0, selPid: null, scroll: 0, log: [], total: [], peak: 0, nextCard: 2750, nextPr: 2604,
+      disk: 74.2, diskShown: 74.2, alert80: false, alert90: false, pruning: null, full: false, reportedGone: 0, hover: null,
       titlePool: titles(), lastAuto: 0,
     };
+    // The selection follows a lane, not a row: S.sel is that lane's row now, or the nearest row once it has gone.
+    S.syncSel = () => {
+      const i = S.lanes.findIndex((l) => l.pid === S.selPid);
+      S.sel = i >= 0 ? i : OS.clamp(S.sel, 0, Math.max(0, S.lanes.length - 1));
+      S.selPid = S.lanes[S.sel]?.pid ?? null;
+      return S.lanes[S.sel];
+    };
+    S.setSel = (i) => { S.sel = OS.clamp(i, 0, Math.max(0, S.lanes.length - 1)); S.selPid = S.lanes[S.sel]?.pid ?? null; };
     const between = ([a, b]) => a + rnd() * (b - a);
     S.say = (lane) => OS.pick(SAYS[lane.state], rnd);
     S.enter = (lane, state) => {
@@ -210,8 +218,10 @@
     S.newLane = (n, state, age) => {
       if (!S.titlePool.length) S.titlePool = titles();
       const title = S.titlePool.splice(Math.floor(rnd() * S.titlePool.length), 1)[0];
+      let pid;
+      do pid = 30000 + Math.floor(rnd() * 39000); while (S.lanes.some((l) => l.pid === pid));
       const lane = {
-        pid: 30000 + Math.floor(rnd() * 39000), n, name: 'lane-' + n, card: 'RL-' + n, title,
+        pid, n, name: 'lane-' + n, card: 'RL-' + n, title,
         state, prev: null, since: S.t - rnd() * 6, dur: 0, tok: TOK[state][0], tokT: TOK[state][0], hist: [], ctx: CTX_MAX * (0.12 + rnd() * 0.6),
         ctxShown: 0, compactUntil: 0, states: [], spent: age * 0.0016 * (0.6 + rnd()), born: S.t - age, pr: null, msg: '', wait: '', stalledAt: S.t,
       };
@@ -293,17 +303,17 @@
         }
         return r.ok;
       };
-      const selected = () => S.lanes[S.sel];
+      const selected = () => S.syncSel();
       const removeLane = (lane) => {
         const i = S.lanes.indexOf(lane); if (i < 0) return;
         S.reportedGone += lane.spent;
         S.lanes.splice(i, 1);
-        S.sel = OS.clamp(S.sel, 0, Math.max(0, S.lanes.length - 1));
+        S.syncSel();
       };
 
       const A = {
-        up() { S.sel = Math.max(0, S.sel - 1); S.dirty = true; },
-        down() { S.sel = Math.min(S.lanes.length - 1, S.sel + 1); S.dirty = true; },
+        up() { S.syncSel(); S.setSel(S.sel - 1); S.dirty = true; },
+        down() { S.syncSel(); S.setSel(S.sel + 1); S.dirty = true; },
         kill() {
           const l = selected(); if (!l || l.state === 'killed') return;
           const after = { building: `Its branch keeps ${2 + Math.floor(rnd() * 4)} commits called craft cleanup.`, spawning: 'It had not finished reading AGENTS.md.', done: 'It had already finished. It was killed anyway.' }[l.state] || 'The PR stays open. Nobody will close it.';
@@ -326,10 +336,10 @@
           if (S.lanes.length >= 12) { S.push('The mastermind runs 12 lanes at most. It has read the note about parallel siblings.', 'warn'); S.dirty = true; return; }
           if (S.full) return;
           const n = S.nextCard++;
-          if (!charge(0.18, `spawn lane-${n}: read AGENTS.md, CLAUDE.md and RL-${n}`)) { S.nextCard--; return; }
+          if (!charge(0.18, `spawn lane-${n}: read AGENTS.md, CLOD.md and RL-${n}`)) { S.nextCard--; return; }
           const lane = S.newLane(n, 'spawning', 0);
           lane.ctx = lane.ctxShown = CTX_MAX * 0.06; lane.spent = 0; lane.born = S.t; lane.since = S.t; lane.pr = null; lane.tok = 0;
-          S.lanes.push(lane); S.sel = S.lanes.length - 1;
+          S.lanes.push(lane); S.setSel(S.lanes.length - 1);
           S.push(`spawned ${lane.name} for ${lane.card}: "${lane.title}". It read AGENTS.md first.`, 'info');
           S.dirty = true;
         },
@@ -338,7 +348,7 @@
           const from = S.disk; const to = Math.min(from, 51 + rnd() * 4);
           const gb = (from - to) * DISK_GB / 100;
           const images = Math.max(1, Math.round(gb / 0.9));
-          S.pruning = { from, to, t0: performance.now(), dur: 1800 / OS.speed, gb, images, label: 'docker image prune -a' };
+          S.pruning = { from, to, t0: performance.now(), dur: 1800 / OS.speed };
           S.push(`docker image prune -a on dev-runner: ${images} images, ${gb.toFixed(1)} GB reclaimed.`, 'good');
           S.full = false;
           S.alert90Note?.dismiss?.();
@@ -384,7 +394,7 @@
             case 'ci':
               if (r < 0.5) { S.enter(l, 'done'); S.push(`${l.name}: CI green. Merged by rebase. Not worse than main.`, 'good'); } else if (r < 0.7) { S.enter(l, 'stalled'); S.push(`${l.name} started a background wait: ${l.wait}. Nothing will wake it.`, 'bad'); } else { S.enter(l, 'building'); S.push(`${l.name}: ${OS.pick(CI_BACK, rnd)}`, 'muted'); }
               break;
-            case 'done': S.push(`${l.name} exited 0. ${l.card} moved to Done.`, 'faint'); removeLane(l); S.reaped++; break;
+            case 'done': S.push(`${l.name} exited 0. ${l.card} moved to Done.`, 'faint'); removeLane(l); break;
             case 'killed': removeLane(l); break;
             default: break;
           }
@@ -409,7 +419,7 @@
           if (S.disk >= 90 && !S.alert90) {
             S.alert90 = true;
             S.push('dev-runner / passed 90%. CI builds images faster than anyone deletes them.', 'bad');
-            S.alert90Note = OS.notify({ app: 'dev-runner', icon: 'desk-computer', urgency: 'critical', title: 'dev-runner: root disk passed 90%', body: 'Press p in lanetop to prune Docker images.', actions: [{ label: 'Prune', run: () => A.prune() }] });
+            S.alert90Note = OS.notify({ app: 'dev-runner', icon: 'desk-computer', urgency: 'critical', title: 'dev-runner: root disk passed 90%', body: 'Press p in lanetop to prune Docker images.', actions: [{ label: 'Prune', run: () => (win.closed ? OS.osd('lanetop is closed. Nothing pruned.') : A.prune()) }] });
             win.flash();
           }
           if (S.disk >= 100 && !S.full) {
@@ -481,7 +491,7 @@
       const fn = map[k];
       if (fn) { e.preventDefault(); fn(); }
     },
-    unmount(win) { (win.state.offs || []).forEach((f) => f()); },
+    unmount(win) { (win.state.offs || []).forEach((f) => f()); win.state.S?.alert90Note?.dismiss?.(); },
   });
 
   // ---------- drawing the screen ----------
@@ -498,7 +508,7 @@
     }
     const g = S.grid; const C = S.C; const m = S.m;
     g.clear();
-    S.sel = OS.clamp(S.sel, 0, Math.max(0, S.lanes.length - 1));
+    S.syncSel();
     const W = m.cols; const R = m.rows;
     if (W < 40 || R < 12) {
       const msg = `lanetop needs 40 × 12. It has ${W} × ${R}.`;
@@ -814,7 +824,7 @@
         const mx = x0 + 3 + tw;
         g.put(mx, yy + 1, fit(`"${l.msg}"`, inner.x + inner.w - mx - 1), dim ? C.faint : C.muted);
       }
-      g.hit(inner.x, yy, inner.w, rh, () => { S.sel = idx; }, 'row:' + l.pid);
+      g.hit(inner.x, yy, inner.w, rh, () => { S.selPid = l.pid; S.syncSel(); }, 'row:' + l.pid);
     }
     if (lanes.length > S.scroll + fitN) g.put(inner.x + inner.w - 12, inner.y + inner.h - detailH - 1, `↓ ${lanes.length - S.scroll - fitN} more`, C.faint);
     if (!lanes.length) g.put(inner.x + 2, inner.y + 2, 'No lanes. Press s to spawn one. It costs $0.18 and reads AGENTS.md.', C.muted);
@@ -827,7 +837,7 @@
       const ago = fmtAge(S.t - l.stalledAt);
       const finished = fmtAge(Math.max(0, S.t - l.stalledAt - 9));
       const line = {
-        spawning: 'reading AGENTS.md, then CLAUDE.md, which says to read AGENTS.md',
+        spawning: 'reading AGENTS.md, then CLOD.md, which says to read AGENTS.md',
         building: `building on ${l.card.toLowerCase()}-${slug(l.title)} · touching only what the card asks for`,
         reviewing: `PR #${l.pr} · review gates: spec compliance, craft, production`,
         ci: `PR #${l.pr} · Frontend Checks 14 of 15 · the 15th is the design-sync gate`,

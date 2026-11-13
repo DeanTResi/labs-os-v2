@@ -22,17 +22,4 @@
 
   // Open a terminal and run a command line in it. Used by the launcher (">" prefix) and the Labs menu.
   OS.exec = (line) => OS.open('terminal', { run: line });
-
-  // Split a command line into words. Handles 'single' and "double" quotes.
-  OS.parseArgs = (line) => {
-    const out = []; let cur = ''; let q = null; let any = false;
-    for (const ch of line) {
-      if (q) { if (ch === q) q = null; else cur += ch; continue; }
-      if (ch === '"' || ch === "'") { q = ch; any = true; continue; }
-      if (/\s/.test(ch)) { if (cur || any) { out.push(cur); cur = ''; any = false; } continue; }
-      cur += ch;
-    }
-    if (cur || any) out.push(cur);
-    return out;
-  };
 })();

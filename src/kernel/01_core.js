@@ -69,7 +69,6 @@ const OS = (() => {
   os.lerp = (a, b, t) => a + (b - a) * t;
   os.money = (n) => (n < 0 ? '-£' : '£') + Math.round(Math.abs(n)).toLocaleString('en-GB');
   os.usd = (n) => (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
-  os.pad = (s, n, ch = ' ') => String(s).padEnd(n, ch).slice(0, Math.max(n, String(s).length));
 
   // ---------- time ----------
   // A day offset lets the spend ledger "wait until tomorrow".

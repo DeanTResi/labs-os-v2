@@ -6,7 +6,7 @@
 <meta name="description" content="Labs OS 2. A tiling desktop for people who compose houses with twenty-two stages and a daily spend cap.">
 <title>Labs OS 2</title>
 <style>/* 00_base.css */
-/* Theme tokens are set on :root by src/kernel/01_themes.js. These are the Labs Night fallbacks. */
+/* Theme tokens are set on :root by src/kernel/02_themes.js. These are the Labs Night fallbacks. */
 :root {
   --bg: #13111c; --bar: rgba(15,13,23,.82); --surface: #1a1726; --surface2: #221e33;
   --fg: #e4e0f7; --muted: #9a94bd; --faint: #5d577d; --border: #2e2945;
@@ -93,7 +93,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ui-bar.good > i { background: var(--good); } .ui-bar.bad > i { background: var(--bad); } .ui-bar.warn > i { background: var(--warn); }
 
 /* The fail-on-purpose panel: OS.crash(win, {...}) */
-.ui-crash { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(3px); z-index: 5; animation: crash-in .25s ease-out; }
+.ui-crash { position: absolute; inset: 24px 0 0 0; border-radius: 0 0 var(--radius) var(--radius); display: flex; align-items: center; justify-content: center; padding: 16px; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(3px); z-index: 5; animation: crash-in .25s ease-out; }
 .ui-crash .box { max-width: 560px; width: 100%; border: 2px solid var(--bad); border-radius: var(--radius); background: var(--surface); box-shadow: 0 0 0 4px color-mix(in srgb, var(--bad) 15%, transparent), 0 20px 50px rgba(0,0,0,.45); }
 .ui-crash .hd { display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: color-mix(in srgb, var(--bad) 18%, var(--surface)); color: var(--bad); font-weight: 800; }
 .ui-crash .bd { padding: 12px 14px; }
@@ -258,7 +258,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Screensaver (kiln) + boot + shutdown */
 .kiln, .boot, .halt { background: #000; color: #d6d6d6; cursor: none; }
 .kiln canvas { width: 100%; height: 100%; display: block; }
-.boot { cursor: default; padding: 14px 18px; font-size: 12px; line-height: 1.5; overflow: hidden; white-space: pre; }
+.boot { cursor: default; padding: 14px 18px; font-size: 12px; line-height: 1.5; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .boot { font-size: 10.5px; padding: 10px; } }
 .boot .ok { color: #5fd38d; } .boot .fail { color: #ff5f6d; } .boot .wait { color: #ffcc66; } .boot .dim { color: #777; } .boot .hi { color: #b9acff; font-weight: 700; }
 .boot .skip { position: absolute; right: 16px; bottom: 12px; color: #555; }
 .halt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; cursor: default; text-align: center; }
@@ -366,7 +367,6 @@ const OS = (() => {
   os.lerp = (a, b, t) => a + (b - a) * t;
   os.money = (n) => (n < 0 ? '-£' : '£') + Math.round(Math.abs(n)).toLocaleString('en-GB');
   os.usd = (n) => (n < 0 ? '-$' : '$') + Math.abs(n).toFixed(2);
-  os.pad = (s, n, ch = ' ') => String(s).padEnd(n, ch).slice(0, Math.max(n, String(s).length));
 
   // ---------- time ----------
   // A day offset lets the spend ledger "wait until tomorrow".
@@ -494,7 +494,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     }),
     T('heightmap', 'Heightmap', true, 'heightmap', {
       bg: '#000000', bar: 'rgba(0,0,0,.85)', surface: '#0b0b0b', surface2: '#151515', fg: '#f0f0f0', muted: '#9a9a9a', faint: '#555555',
-      border: '#2a2a2a', accent: '#ffffff', accent2: '#8a8a8a', good: '#d6d6d6', bad: '#ffffff', warn: '#bbbbbb', info: '#e0e0e0', sel: '#333333', onAccent: '#000000',
+      border: '#2a2a2a', accent: '#ffffff', accent2: '#8a8a8a', good: '#d6d6d6', bad: '#8a8a8a', warn: '#bbbbbb', info: '#e0e0e0', sel: '#333333', onAccent: '#000000',
       blurb: 'Black is low. White is high. Good and bad are both grey.',
     }),
     T('matte-mortar', 'Matte Mortar', true, 'bricky', {
@@ -640,8 +640,8 @@ window.OS = OS; // for tools/shot.mjs and the console
       'New backdrop and lighting on every model view',
       'Model picture: one capture at a time per host, across job processes',
       'Design tab loading skeleton with sheen',
-      'Bump oxlint from 1.89.0 to 1.90.0',
-      'Bump vitest from 5.0.5 to 5.1.0',
+      'Bump the linter from 1.89.0 to 1.90.0',
+      'Bump the test runner from 5.0.5 to 5.1.0',
       'Remove the Gabled roof option from the side extension',
       'Composer decorate: downpipes from the main roof front gutter',
       'site scene: the model on its OS plot with fence, garden, street and neighbours',
@@ -849,8 +849,8 @@ window.OS = OS; // for tools/shot.mjs and the console
       '## Test Strategy for agents', '',
       'Do NOT run the full test suite unnecessarily. It slows down development.', '',
     ].join('\n'),
-    [`${L}/Gemfile`]: "source 'https://rubygems.org'\ngem 'rails', '~> 8.1'\ngem 'view_component'\ngem 'acts_as_tenant' # never bypass it\n",
-    [`${L}/db/schema.rb`]: () => 'ActiveRecord::Schema[8.1].define(version: 2026_11_13_000000) do\n  # 4,812 lines. Every new workspace shows unrelated changes to this file.\n  # (That was fixed. It is still a joke.)\nend\n',
+    [`${L}/Gemfile`]: "gem 'rails', '~> 8.1'\ngem 'view_component'\ngem 'acts_as_tenant' # never bypass it\n",
+    [`${L}/db/schema.rb`]: () => 'ActiveRecord::Schema[8.1].define(version: 2026_11_13_000000) do\n  # 4,812 lines. Nobody has read line 2,406.\nend\n',
     [`${L}/bin/dev`]: '#!/usr/bin/env sh\n# Starts Rails, Vite and the property builder watcher. Use tenant.localhost:3000.\nexec foreman start -f Procfile.dev "$@"\n',
     [`${L}/bin/rspec_all`]: '#!/usr/bin/env sh\n# The full parallel suite. Only before opening a PR. Splits the browser specs out.\n',
     [`${L}/bin/composer`]: '#!/usr/bin/env ruby\n# Runs the Composer pipeline locally. Try `bin/composer run 158`.\n',
@@ -964,19 +964,6 @@ window.OS = OS; // for tools/shot.mjs and the console
 
   // Open a terminal and run a command line in it. Used by the launcher (">" prefix) and the Labs menu.
   OS.exec = (line) => OS.open('terminal', { run: line });
-
-  // Split a command line into words. Handles 'single' and "double" quotes.
-  OS.parseArgs = (line) => {
-    const out = []; let cur = ''; let q = null; let any = false;
-    for (const ch of line) {
-      if (q) { if (ch === q) q = null; else cur += ch; continue; }
-      if (ch === '"' || ch === "'") { q = ch; any = true; continue; }
-      if (/\s/.test(ch)) { if (cur || any) { out.push(cur); cur = ''; any = false; } continue; }
-      cur += ch;
-    }
-    if (cur || any) out.push(cur);
-    return out;
-  };
 })();
 
 ;
@@ -1079,12 +1066,11 @@ window.OS = OS; // for tools/shot.mjs and the console
       const P = (px, pz) => [px, H(px, pz), pz];
       const faces = [{ pts: [P(x, z), P(x, z1), P(x1, z1), P(x1, z)], kind: 'slope' }];
       const sides = { z0: [[x, z], [x1, z]], z1: [[x1, z1], [x, z1]], x0: [[x, z1], [x, z]], x1: [[x1, z], [x1, z1]] };
-      for (const [k, [a, b]] of Object.entries(sides)) {
+      for (const [a, b] of Object.values(sides)) {
         const pa = P(...a); const pb = P(...b);
         if (pa[1] === y && pb[1] === y) continue;
         if (pa[1] > y && pb[1] > y) faces.push({ pts: [[a[0], y, a[1]], [b[0], y, b[1]], pb, pa], kind: 'wall' });
         else faces.push({ pts: [[a[0], y, a[1]], [b[0], y, b[1]], pa[1] > y ? pa : pb], kind: 'gable' });
-        void k;
       }
       return solid(faces, { color, ...opts });
     },
@@ -1150,7 +1136,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         cam.dist = OS.clamp((r / Math.sin(cam.fov / 2)) * pad / aspect, opts.minDist, opts.maxDist);
         this.request();
       },
-      autoRotate(speed) { rotating = speed; if (speed) loop(); },
+      autoRotate(speed) { const was = rotating; rotating = speed; if (speed && !was) { lastT = 0; requestAnimationFrame(loop); } },
       pick(clientX, clientY) {
         const r = canvas.getBoundingClientRect();
         const dpr = canvas.width / (r.width || 1);
@@ -1393,7 +1379,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     const el = h('div', { class: 'win opening', dataset: { app: app.id, id: String(id) }, role: 'dialog', 'aria-label': app.title }, header, body);
     const win = {
       id, app, el, body, header, ws: cur, floating: false, rect: null, state: {}, closed: false, title: app.title,
-      _timers: [], _h: {},
+      _timers: new Set(), _h: {},
       setTitle(t) { this.title = t; title.textContent = t; el.setAttribute('aria-label', t); OS.emit('win:title', this); },
       setMeta(t) { meta.textContent = t || ''; },
       close() { close(this); },
@@ -1402,10 +1388,20 @@ window.OS = OS; // for tools/shot.mjs and the console
       get visible() { return !this.closed && this.ws === cur && !el.classList.contains('hidden'); },
       get width() { return body.clientWidth; },
       get height() { return body.clientHeight; },
-      every(ms, fn) { const t = setInterval(() => { if (!this.closed) fn(); }, ms / OS.speed); this._timers.push(() => clearInterval(t)); return t; },
-      after(ms, fn) { const t = setTimeout(() => { if (!this.closed) fn(); }, ms / OS.speed); this._timers.push(() => clearTimeout(t)); return t; },
+      every(ms, fn) { const t = setInterval(() => { if (!this.closed) fn(); }, ms / OS.speed); this._timers.add(() => clearInterval(t)); return t; },
+      after(ms, fn) {
+        const cancel = () => clearTimeout(t);
+        const t = setTimeout(() => { this._timers.delete(cancel); if (!this.closed) fn(); }, ms / OS.speed);
+        this._timers.add(cancel); return t;
+      },
       // Resolves after ms, or straight away when the window closes. Check win.closed after every await.
-      sleep(ms) { return new Promise((r) => { const t = setTimeout(r, ms / OS.speed); this._timers.push(() => { clearTimeout(t); r(); }); }); },
+      sleep(ms) {
+        return new Promise((r) => {
+          const cancel = () => { clearTimeout(t); r(); };
+          const t = setTimeout(() => { this._timers.delete(cancel); r(); }, ms / OS.speed);
+          this._timers.add(cancel);
+        });
+      },
       raf(fn) { const r = { win: this, fn }; rafs.add(r); return () => rafs.delete(r); },
       on(evt, fn) { (this._h[evt] ||= []).push(fn); return () => { this._h[evt] = this._h[evt].filter((f) => f !== fn); }; },
       emit(evt, data) { for (const fn of this._h[evt] || []) { try { fn(data); } catch (err) { console.error(`[OS] '${evt}' handler in '${app.id}' threw`, err); } } },
@@ -1428,7 +1424,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       requestAnimationFrame(() => { pend = false; if (!win.closed) { win.emit('resize'); try { app.onResize?.(win); } catch (err) { console.error(err); } } });
     });
     ro.observe(body);
-    win._timers.push(() => ro.disconnect());
+    win._timers.add(() => ro.disconnect());
     return win;
   }
 
@@ -1501,6 +1497,11 @@ window.OS = OS; // for tools/shot.mjs and the console
     win.el.classList.add('focused');
     win.urgent = false;
     const w = W(win.ws);
+    if (w.full && w.full !== win.id && !win.floating) {
+      const fw = wins.get(w.full); w.full = null;
+      if (fw) fw.el.style.zIndex = '';
+      layout(win.ws);
+    }
     w.history = [...w.history.filter((id) => id !== win.id), win.id];
     if (win.floating) win.el.style.zIndex = String(++zTop);
     if (w.layout === 'monocle' || narrow()) layout(win.ws);
@@ -1630,6 +1631,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     OS.emit('ws', cur);
   }
   function resize(delta) { const w = W(cur); w.ratio = OS.clamp(w.ratio + delta, 0.2, 0.8); layout(cur); }
+  function setRatio(r, n = cur) { W(n).ratio = OS.clamp(r, 0.2, 0.8); layout(n); }
 
   function neighbour(dir) {
     if (!focused) return null;
@@ -1716,7 +1718,7 @@ window.OS = OS; // for tools/shot.mjs and the console
   window.addEventListener('resize', () => { for (let n = 1; n <= 9; n++) layout(n); });
 
   OS.wm = {
-    cfg, open, close, focus, layout, switchWs, moveToWs, toggleFloat, toggleFull, cycleLayout, resize, focusDir, swapDir, updateEmpty,
+    cfg, open, close, focus, layout, switchWs, moveToWs, toggleFloat, toggleFull, cycleLayout, resize, setRatio, focusDir, swapDir, updateEmpty,
     list: () => [...wins.values()],
     focused: () => focused,
     current: () => cur,
@@ -1803,7 +1805,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       ),
       h('div', { class: 'ft' }, actions.map((a) => h('button', { class: 'ui-btn' + (a.primary ? ' primary' : ''), onclick: () => { const keep = a.run?.(); if (keep !== true) close(); } }, a.label))),
     ));
-    win.body.append(panel);
+    win.el.append(panel);
     OS.sound.error();
     OS.emit('crash', { win, spec });
     return panel;
@@ -1899,8 +1901,8 @@ window.OS = OS; // for tools/shot.mjs and the console
     for (const s of samples) spark.append(h('i', { style: { height: Math.max(2, Math.min(12, (s / 33) * 12)) + 'px' } }));
   }, 700);
 
-  const net = mod('dim hide-mid', 'Network', () => OS.notify({ app: 'network', icon: 'wave', title: 'Connected: planning-portal (5 GHz)', body: 'Signal: strong. Latency: eight weeks. Determination period: also eight weeks.' }));
-  net.append(icon('wifi'), 'planning-portal');
+  const net = mod('dim hide-mid', 'Network', () => OS.notify({ app: 'network', icon: 'wave', title: 'Connected: council-guest (5 GHz)', body: 'Signal: strong. Latency: eight weeks. Determination period: also eight weeks.' }));
+  net.append(icon('wifi'), 'council-guest');
 
   const snd = mod('dim', 'Sound', () => { OS.sound.set(!OS.sound.on); drawSnd(); OS.osd(OS.sound.on ? 'sound on' : 'sound off'); });
   function drawSnd() { snd.innerHTML = ''; snd.append(icon(OS.sound.on ? 'volume' : 'mute')); }
@@ -2139,8 +2141,11 @@ window.OS = OS; // for tools/shot.mjs and the console
 
   OS.sessionOpen = () => !!sessionLayer;
   OS.sessionKey = (e) => sessionLayer?.key?.(e) ?? false;
+  // While a session layer is up, the desktop behind it takes no input at all.
+  const behind = () => ['bar', 'desk', 'notes', 'empty'].map((id) => document.getElementById(id));
   function layer(el, key, onClose) {
     closeLayer();
+    behind().forEach((n) => n?.setAttribute('inert', ''));
     overlayRoot.append(el);
     sessionLayer = { el, key, onClose };
     return sessionLayer;
@@ -2148,6 +2153,7 @@ window.OS = OS; // for tools/shot.mjs and the console
   function closeLayer() {
     if (!sessionLayer) return;
     const s = sessionLayer; sessionLayer = null;
+    behind().forEach((n) => n?.removeAttribute('inert'));
     s.el.remove(); s.onClose?.();
     const f = OS.wm.focused(); if (f) f.emit('focus');
   }
@@ -2163,7 +2169,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       ['Gold', 'Houses 158, 152, 135 and 178 are reliable. I visit them at weekends.'],
       ['Not worse than main', 'I checked. You are not worse than main. Nobody said better.'],
       ['Two viewers', 'There are two 3D viewers. They have never met. One of them has textures.'],
-      ['Width', 'Every extension is 3 m wide. It has always been 3 m. Only the depth moves.'],
+      ['Width', 'Every extension is 3 m wide. No width exists anywhere in the payload. Both are true.'],
       ['Dependencies', 'A linter moved from 1.89.0 to 1.90.0. Life goes on.'],
       ['Partial gables', 'A gap in a gable line is valid. I looked it up. Twice.'],
       ['Context window', 'I am at 81%. I will compact soon. I will not remember this. Neither will you.'],
@@ -2179,7 +2185,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     quips: [
       'I am still 32 by 32. They offered me vectors. I said no.',
       'Everyone else got a redesign. I got a tiling window manager.',
-      'SUPER is Alt. I am also Alt. Alternative.',
+      'SUPER is Alt. The browser kept the real Super key. I was not consulted.',
       'I was composed. Twenty-two stages. I came out as a brick.',
       'Ask me about the daily cap. Actually, don\'t. It costs money.',
       'My approach is luna_brick_1. Its output never changes.',
@@ -2198,7 +2204,6 @@ window.OS = OS; // for tools/shot.mjs and the console
   OS.brickySay = (text) => {
     OS.notify({ app: 'bricky', bricky: true, title: 'Bricky', body: text || OS.pick(B.quips), timeout: 5000 });
   };
-  OS.brickyCopy = B;
   function scheduleBricky() {
     const wait = (60000 + Math.random() * 70000) / OS.speed;
     setTimeout(() => {
@@ -2320,18 +2325,18 @@ window.OS = OS; // for tools/shot.mjs and the console
 
   // ---------- boot ----------
   const BOOT = [
-    ['hi', 'Labs OS 2.0 (Composed) · linux-labs 6.22.0-composed · x86_64'],
+    ['hi', 'Labs OS 2.0 (Composed) · kernel 6.22.0-composed · x86_64'],
     ['dim', 'Upgrading from Labs OS 3.1 (Evaluation). Version numbers are display numbers. They renumber.'],
     ['dim', 'Loading initial ramdisk (four houses you can trust)...'],
     ['ok', 'Reached target Local File Systems. /gold mounted read-only.'],
     ['ok', 'Started Journal Service. Every approach recorded. None renamed.'],
     ['ok', 'Started Spend Ledger Daemon ($100.00 a day, UTC).'],
-    ['ok', 'Started Composer Pipeline Manager (22 stages, P1 to M4).'],
-    ['ok', 'Started Configurator v3 (Vite, Inertia, React, two 3D viewers).'],
+    ['ok', 'Started Composer Pipeline Manager (22 stages, P1 to M4, two 3D viewers, one with textures).'],
+    ['ok', 'Started Configurator v3 (Vite, Inertia, React).'],
     ['wait', 'A start job is running for Configurator redesign, round 6 (5 of ∞)'],
-    ['ok', 'Finished Configurator redesign, round 6. Round 7 booked.'],
+    ['ok', 'Deferred Configurator redesign, round 6. Round 5 is still open.'],
     ['ok', 'Started Gristle Review Daemon (patience: 1).'],
-    ['fail', 'Failed to start S3 CORS. See \'systemctl status s3-cors\' for details.'],
+    ['fail', 'Failed to start bucket-cors.service. The image bucket has no CORS. See \'brickctl status bucket-cors\'.'],
     ['ok', 'Started Bricky (pid 1, 32x32, unupgraded by choice).'],
     ['ok', 'Started Lane Supervisor (3 lanes waiting on a background job).'],
     ['ok', 'Mounted /home/researcher/labs (6,363 commits, every one rebased).'],
@@ -2408,7 +2413,8 @@ window.OS = OS; // for tools/shot.mjs and the console
     OS.boot(() => OS.startSession?.());
   };
 
-  OS.startBricky = scheduleBricky;
+  let brickyStarted = false;
+  OS.startBricky = () => { if (!brickyStarted) { brickyStarted = true; scheduleBricky(); } };
 })();
 
 ;
@@ -2584,6 +2590,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     ['Alt+Enter', 'Terminal (brickty)'], ['Alt+Shift+Space', 'Labs menu'],
     ['Alt+W', 'Close window'], ['Alt+F', 'Fullscreen'], ['Alt+T', 'Float or tile'], ['Alt+M', 'Cycle layout: dwindle, master, monocle'],
     ['Alt+1..9', 'Go to workspace'], ['Alt+Shift+1..9', 'Move window to workspace'],
+    ['Ctrl+Alt+1..9', 'Go to workspace, even where Option+3 types #'],
     ['Alt+H J K L', 'Focus left, down, up, right (arrows work too)'], ['Alt+Shift+H J K L', 'Swap with the window in that direction'],
     ['Alt+Ctrl+← →', 'Resize the first split'], ['Alt+Esc', 'Lock (deadlock)'],
     ['Alt+/', 'This sheet'], ['Alt+N', 'Notifications'], ['Alt+B', 'Bricky says a thing'],
@@ -2592,11 +2599,16 @@ window.OS = OS; // for tools/shot.mjs and the console
     ['Drag a title bar', 'Swap tiles, or move a floating window'], ['Double-click a title bar', 'Fullscreen'],
   ];
 
+  // Characters that Option types on Mac keyboards (# on UK, @ [ ] { } | on German). In a text field they win.
+  const TYPED = new Set(['#', '@', '[', ']', '{', '}', '|', '\\', '~', '€', '£', '`', '^']);
+
   function binding(e) {
     const f = OS.wm.focused();
     const shift = e.shiftKey; const ctrl = e.ctrlKey;
     if (ctrl && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { OS.wm.resize(e.code === 'ArrowLeft' ? -0.05 : 0.05); return true; }
+    if (ctrl && e.code.startsWith('Digit') && e.code !== 'Digit0') { OS.wm.switchWs(Number(e.code.slice(5))); return true; }
     if (ctrl) return false;
+    if (editable(document.activeElement) && TYPED.has(e.key)) return false;
     if (e.code === 'Space') { if (shift) OS.ui.menu(); else OS.ui.launcher(); return true; }
     if (e.code === 'Enter') { OS.open('terminal', undefined, { float: shift }); return true; }
     if (e.code.startsWith('Digit') && e.code !== 'Digit0') {
@@ -2673,9 +2685,10 @@ window.OS = OS; // for tools/shot.mjs and the console
         );
       };
       render();
-      win.state.off = OS.on('theme', render);
+      win.state.offs = [OS.on('theme', render), OS.on('wallpaper', render)];
+      win.on('focus', render);
     },
-    unmount(win) { win.state.off?.(); },
+    unmount(win) { win.state.offs?.forEach((off) => off()); },
   });
 
   registerApp({
@@ -2685,7 +2698,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       const rows = [
         ['Version', `Labs OS ${OS.version} (${OS.codename})`], ['Build', OS.build], ['Compositor', 'brickland (dwindle, master, monocle)'],
         ['Shell', 'brickty, with real commands and a fake disk'], ['Pipeline', `${OS.data.stages.length} stages, page codes P1 to M4`],
-        ['Spend cap', `${OS.usd(OS.data.dailyCapUsd)} a day (UTC)`], ['Mascot', 'Bricky, 32x32, unupgraded by choice'],
+        ['Spend cap', `${OS.usd(OS.data.dailyCapUsd)} a day (UTC)`], ['Mascot', 'Bricky. Offered vectors. Declined.'],
         ['Previous version', '3.1 (Evaluation). 2.0 follows 3.1. Version numbers are display numbers.'],
       ];
       win.body.append(h('div', { class: 'ui-pad col', style: { gap: '12px' } },
@@ -2724,7 +2737,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         'brine 9.0: Labs OS 3.1 in compatibility mode. Keys typed inside belong to 1996. Use the ✕ above, or click outside first, to get Alt back.');
       win.body.style.display = 'flex'; win.body.style.flexDirection = 'column';
       win.body.append(note, h('div', { class: 'grow' }, frame));
-      win.setMeta('wine is a different thing');
+      win.setMeta('not to be confused with anything else');
     },
   });
 })();
@@ -2951,7 +2964,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       '/dev/null': '',
       [HOME + '/.brickty_history']: () => hist.join('\n') + (hist.length ? '\n' : ''),
       [LABS + '/' + SAVE_REL]: SAVE_TSX,
-      [LABS + '/Procfile.dev']: 'web: bin/rails server -p 3000\nvite: bin/vite dev\ncss: bin/rails tailwindcss:watch\njobs: bin/jobs\n',
+      [LABS + '/Procfile.dev']: 'web: bin/rails server -p 3000\nvite: bin/vite dev\ncss: bin/rails css:watch\njobs: bin/jobs\n',
       [LABS + '/package.json']: '{\n  "name": "labs",\n  "private": true,\n  "scripts": {\n    "dev": "bin/dev",\n    "check": "lint, types and unit tests",\n    "check:ci": "every step of CI\'s Frontend Checks job",\n    "design:sync": "record the design system sync",\n    "test": "unit tests"\n  }\n}\n',
     };
     for (const [p, c] of Object.entries(map)) {
@@ -3206,6 +3219,53 @@ window.OS = OS; // for tools/shot.mjs and the console
         text() { const a = this.lines(); return a.length ? a.join('\n') + '\n' : ''; },
       };
     }
+    // A pipe between two stages of a pipeline. Lines arrive as the writer prints them.
+    // close() is the reader leaving: later writes are dropped and the writer's io.aborted turns true.
+    function makePipe() {
+      const q = []; let head = 0; let eof = false; let gone = false;
+      const waiters = new Set(); const sleepers = new Set();
+      const poke = (set) => { for (const f of [...set]) f(); };
+      return {
+        sleepers,
+        get gone() { return gone; },
+        push(l) { if (gone) return; q.push(l); poke(waiters); },
+        end() { eof = true; poke(waiters); },
+        close() { if (gone) return; gone = true; q.length = 0; head = 0; poke(waiters); poke(sleepers); },
+        // The next line, or null at the end of input. out is the reader's own output: when its pipe closes, reading stops.
+        read(out) {
+          return new Promise((res) => {
+            const take = () => {
+              if (gone || out?.broken) return null;
+              if (head < q.length) { const v = q[head]; q[head++] = undefined; if (head > 1024 && head * 2 > q.length) { q.splice(0, head); head = 0; } return v; }
+              return eof ? null : undefined;
+            };
+            const v = take();
+            if (v !== undefined) { res(v); return; }
+            out?.idle?.(); // about to wait for input, so the line this reader finished goes on now
+            const step = () => { const w = take(); if (w === undefined) return; waiters.delete(step); out?.sleepers?.delete(step); res(w); };
+            waiters.add(step); out?.sleepers?.add(step);
+          });
+        },
+        async all(out) { const a = []; for (let l; (l = await this.read(out)) !== null;) a.push(l); return a; },
+      };
+    }
+    // The writing end of a pipe. A line goes down the pipe once the writer starts the next one, waits for input,
+    // sleeps for 400 ms or more, or asks a question, so a progress line rewritten in place sends only its final state.
+    function pipeSink(pipe) {
+      let cur = null; let isOpen = false;
+      const send = () => { if (cur && !cur.removed) for (const l of cur.t.split('\n')) pipe.push(l); cur = null; isOpen = false; };
+      const hd = (r) => ({ el: null, set(c) { r.t = plain(c); }, remove() { r.removed = true; } });
+      return {
+        tty: false,
+        get broken() { return pipe.gone; },
+        sleepers: pipe.sleepers,
+        line(c) { const t = plain(c); if (isOpen) { isOpen = false; cur.t += t; return hd(cur); } send(); cur = { t }; return hd(cur); },
+        part(c) { const t = plain(c); if (isOpen) cur.t += t; else { send(); cur = { t }; isOpen = true; } },
+        clear() { cur = null; isOpen = false; },
+        idle() { if (!isOpen) send(); },
+        end() { send(); pipe.end(); },
+      };
+    }
 
     // ----- prompt and input rendering -----
     const inLabs = () => S.cwd === LABS || S.cwd.startsWith(LABS + '/');
@@ -3359,13 +3419,15 @@ window.OS = OS; // for tools/shot.mjs and the console
     const newJob = () => { const j = { aborted: false, killed: false, done: false, sleeps: new Set(), trap: null }; j.killP = new Promise((r) => { j.killR = r; }); return j; };
     const wake = (job) => { for (const f of [...job.sleeps]) f(); };
     const killJob = (job) => { if (job.done || job.killed) return; job.killed = true; job.aborted = true; wake(job); job.killR(130); };
-    function jobSleep(job, ms) {
+    // o is the sleeper's output: when it is a pipe and the reader leaves, the sleep ends early.
+    function jobSleep(job, ms, o) {
       return new Promise((res) => {
-        if (job.aborted || win.closed) { res(); return; }
+        if (job.aborted || o?.broken || win.closed) { res(); return; }
+        if (ms >= 400) o?.idle?.();
         let t = 0;
-        const done = () => { clearTimeout(t); job.sleeps.delete(done); res(); };
+        const done = () => { clearTimeout(t); job.sleeps.delete(done); o?.sleepers?.delete(done); res(); };
         t = setTimeout(done, Math.max(0, ms) / OS.speed);
-        job.sleeps.add(done);
+        job.sleeps.add(done); o?.sleepers?.add(done);
       });
     }
     function ask(job, q, opt = {}) {
@@ -3396,9 +3458,10 @@ window.OS = OS; // for tools/shot.mjs and the console
         cd: (p) => cdTo(p),
         get cols() { measure(); return S.cols; },
         get rows() { measure(); return S.rows; },
-        sleep: (ms) => jobSleep(job, ms),
-        get aborted() { return job.aborted || win.closed; },
-        prompt: (q, opt) => ask(job, q, opt),
+        sleep: (ms) => jobSleep(job, ms, o),
+        get aborted() { return job.aborted || win.closed || !!o.broken; },
+        read: () => (stdin && !Array.isArray(stdin) ? stdin.read(o) : Promise.resolve(null)),
+        prompt: (q, opt) => { o.idle?.(); return ask(job, q, opt); },
         open: (id, a) => OS.open(id, a),
         trap: (fn) => { job.trap = fn; },
         win,
@@ -3434,13 +3497,20 @@ window.OS = OS; // for tools/shot.mjs and the console
       if (cmd.length > 1) for (const n of [...OS.commands.names(), ...S.aliases.keys()]) { if (n.length < 2) continue; const d = lev(cmd, n); if (d < bd) { bd = d; best = n; } }
       if (best) e.line([['Did you mean ', 'muted'], [best, 'ok'], ['?', 'muted']]);
     }
+    const temps = new Map();
     async function runCommand(argv, job, o, e, stdin, depth, noAlias) {
       let i = 0;
       while (i < argv.length && /^[A-Za-z_]\w*=/.test(argv[i])) i++;
       if (!argv.length) return 0;
-      const setv = (a) => { const j = a.indexOf('='); const k = a.slice(0, j); const prev = S.vars.get(k); S.vars.set(k, a.slice(j + 1)); return [k, prev]; };
-      if (i === argv.length) { argv.forEach(setv); return 0; }
-      const saved = argv.slice(0, i).map(setv);
+      const kv = (a) => { const j = a.indexOf('='); return [a.slice(0, j), a.slice(j + 1)]; };
+      if (i === argv.length) { for (const [k, v] of argv.map(kv)) { const t = temps.get(k); if (t) t.base = v; else S.vars.set(k, v); } return 0; }
+      // VAR=x cmd: stages of one pipeline overlap, so each key keeps a stack and gets its first value back at the end.
+      const saved = argv.slice(0, i).map(kv).map(([k, v]) => {
+        let t = temps.get(k);
+        if (!t) temps.set(k, (t = { base: S.vars.get(k), list: [] }));
+        const mine = { v }; t.list.push(mine); S.vars.set(k, v);
+        return [k, mine];
+      });
       const cmd = argv[i]; const args = argv.slice(i + 1);
       try {
         if (S.aliases.has(cmd) && !noAlias.has(cmd)) {
@@ -3450,7 +3520,13 @@ window.OS = OS; // for tools/shot.mjs and the console
         const spec = lookup(cmd, e);
         if (spec === false) return 126;
         if (!spec) { notFound(cmd, e); return 127; }
-        const io = makeIO(job, o, e, stdin);
+        // Only commands marked stream read a pipe line by line. The rest get every line once the writer ends.
+        let input = stdin;
+        if (input && !Array.isArray(input) && !spec.stream) {
+          input = await Promise.race([input.all(o), job.killP]);
+          if (job.killed) return 130;
+        }
+        const io = makeIO(job, o, e, input);
         const p = (async () => spec.run.call(spec, args, io))();
         p.catch(() => {});
         const r = await Promise.race([p, job.killP]);
@@ -3460,7 +3536,11 @@ window.OS = OS; // for tools/shot.mjs and the console
         e.line(`${cmd}: ${err?.message || err}`, 'bad');
         return 1;
       } finally {
-        for (const [k, prev] of saved) { if (prev === undefined) S.vars.delete(k); else S.vars.set(k, prev); }
+        for (const [k, mine] of saved) {
+          const t = temps.get(k); t.list.splice(t.list.indexOf(mine), 1);
+          if (t.list.length) S.vars.set(k, t.list[t.list.length - 1].v);
+          else { temps.delete(k); if (t.base === undefined) S.vars.delete(k); else S.vars.set(k, t.base); }
+        }
       }
     }
     function writeOut(abs, text, append, e, typed) {
@@ -3469,37 +3549,47 @@ window.OS = OS; // for tools/shot.mjs and the console
         writeFile(abs, prev + text);
       } catch (err) { e.line('brickty: ' + errText('write', typed, err).replace(/^write: /, ''), 'bad'); }
     }
+    // Every stage runs at once, joined by pipes, so a stage that runs until Ctrl+C still feeds the next one.
+    // A stage that ends closes the pipe it reads, which ends the stage before it (head -3 stops ping).
     async function runPipeline(stages, job, o, e, stdin, depth, noAlias) {
-      let input = stdin; let code = 0;
-      for (let k = 0; k < stages.length; k++) {
-        const st = stages[k]; const isLast = k === stages.length - 1;
-        const argv = [];
-        for (const w of st.words) argv.push(...expandWord(w));
-        let outFile = null; let outTyped = ''; let append = false; let errMode = null; let errFile = null; let bad = false;
-        for (const r of st.redirs) {
-          if (r.op === '2>&1') { errMode = 'out'; continue; }
-          const target = expandWord(r.target)[0] ?? '';
-          const abs = OS.fs.resolve(S.cwd, target);
-          if (r.op === '<') {
-            try { input = abs === '/dev/null' ? [] : splitLines(OS.fs.read(abs)); } catch (err) { e.line('brickty: ' + errText('x', target, err).replace(/^x: /, ''), 'bad'); bad = true; }
-            continue;
+      const pipes = stages.slice(1).map(() => makePipe());
+      const runStage = async (k) => {
+        const st = stages[k]; const up = k ? pipes[k - 1] : null; const down = pipes[k] || null;
+        let ps = null;
+        try {
+          let input = up || stdin;
+          const argv = [];
+          for (const w of st.words) argv.push(...expandWord(w));
+          let outFile = null; let outTyped = ''; let append = false; let errMode = null; let errFile = null; let bad = false;
+          for (const r of st.redirs) {
+            if (r.op === '2>&1') { errMode = 'out'; continue; }
+            const target = expandWord(r.target)[0] ?? '';
+            const abs = OS.fs.resolve(S.cwd, target);
+            if (r.op === '<') {
+              try { input = abs === '/dev/null' ? [] : splitLines(OS.fs.read(abs)); } catch (err) { e.line('brickty: ' + errText('x', target, err).replace(/^x: /, ''), 'bad'); bad = true; }
+              continue;
+            }
+            const deny = abs === '/dev/null' ? null : denyWrite(abs) || (OS.fs.isDir(abs) ? 'Is a directory' : null) || (!OS.fs.isDir(OS.fs.dirname(abs)) ? 'No such file or directory' : null);
+            if (deny) { e.line(`brickty: ${target}: ${deny}`, 'bad'); bad = true; continue; }
+            if (r.op === '2>') { errMode = 'file'; errFile = abs; } else { outFile = abs; outTyped = target; append = r.op === '>>'; if (r.op === '&>') errMode = 'out'; }
           }
-          const deny = abs === '/dev/null' ? null : denyWrite(abs) || (OS.fs.isDir(abs) ? 'Is a directory' : null) || (!OS.fs.isDir(OS.fs.dirname(abs)) ? 'No such file or directory' : null);
-          if (deny) { e.line(`brickty: ${target}: ${deny}`, 'bad'); bad = true; continue; }
-          if (r.op === '2>') { errMode = 'file'; errFile = abs; } else { outFile = abs; outTyped = target; append = r.op === '>>'; if (r.op === '&>') errMode = 'out'; }
+          if (bad) return 1;
+          const cap = outFile ? capture() : null;
+          if (!cap && down) ps = pipeSink(down);
+          const so = cap || ps || o;
+          const ecap = errMode === 'file' ? capture() : null;
+          const se = errMode === 'out' ? so : ecap || e;
+          const code = await runCommand(argv, job, so, se, input, depth, noAlias);
+          if (outFile && outFile !== '/dev/null') writeOut(outFile, cap.text(), append, e, outTyped);
+          if (ecap && errFile !== '/dev/null') writeOut(errFile, ecap.text(), false, e, errFile);
+          return code;
+        } finally {
+          if (ps) ps.end(); else down?.end();
+          up?.close();
         }
-        if (bad) { code = 1; input = []; continue; }
-        const cap = !isLast || outFile ? capture() : null;
-        const so = cap || o;
-        const ecap = errMode === 'file' ? capture() : null;
-        const se = errMode === 'out' ? so : ecap || e;
-        code = await runCommand(argv, job, so, se, input, depth, noAlias);
-        if (outFile && outFile !== '/dev/null') writeOut(outFile, cap.text(), append, e, outTyped);
-        if (ecap && errFile !== '/dev/null') writeOut(errFile, ecap.text(), false, e, errFile);
-        input = cap && !outFile ? cap.lines() : (isLast ? null : []);
-        if (job.aborted) return 130;
-      }
-      return code;
+      };
+      const codes = await Promise.all(stages.map((_, k) => runStage(k)));
+      return job.aborted ? 130 : codes[codes.length - 1];
     }
     async function execText(text, job, o, e, stdin, depth, noAlias) {
       if (depth > 12) { e.line('brickty: aliases nested twelve deep. It is aliases all the way down.', 'bad'); return 1; }
@@ -3527,14 +3617,23 @@ window.OS = OS; // for tools/shot.mjs and the console
     S.execNested = (text, io) => execText(text, io._ctx.job, io._ctx.o, io._ctx.e, io.stdin, 1, new Set());
 
     // ----- running a line from the prompt -----
+    // !! and !n, as bash does: not inside single quotes, and not after a backslash.
     function expandBang(text) {
-      let err = null;
-      const r = text.replace(/!(!|-?\d+)/g, (m, g) => {
-        if (g === '!') { if (!hist.length) { err = '!!: event not found'; return m; } return hist[hist.length - 1]; }
-        const n = parseInt(g, 10); const ev = n < 0 ? hist[hist.length + n] : hist[n - 1];
-        if (ev == null) { err = `${m}: event not found`; return m; }
-        return ev;
-      });
+      let err = null; let r = ''; let q = null;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (q === "'") { r += c; if (c === "'") q = null; continue; }
+        if (c === '\\') { r += text.slice(i, i + 2); i++; continue; }
+        if (c === '"') q = q ? null : '"';
+        else if (c === "'" && !q) q = "'";
+        const m = c === '!' ? /^!(!|-?\d+)/.exec(text.slice(i)) : null;
+        if (!m) { r += c; continue; }
+        let ev;
+        if (m[1] === '!') ev = hist[hist.length - 1];
+        else { const n = parseInt(m[1], 10); ev = n < 0 ? hist[hist.length + n] : hist[n - 1]; }
+        if (ev == null) { err ||= `${m[0]}: event not found`; ev = m[0]; }
+        r += ev; i += m[0].length - 1;
+      }
       return err ? { error: err } : { text: r };
     }
     function pushHist(t) {
@@ -3653,25 +3752,32 @@ window.OS = OS; // for tools/shot.mjs and the console
       return false;
     }
     function bell() { OS.sound.beep(440, 30, 'sine', 0.02); }
+    function killWord() {
+      const p = pos(); const cut = ta.value.slice(0, p).replace(/\s+$/, '').replace(/\S+$/, '');
+      ta.value = cut + ta.value.slice(p); caret(cut.length);
+    }
     function handleKey(e) {
       if (e.isComposing || e.keyCode === 229) return false;
       S.stick = true; bump();
       if (S.mode === 'search') return searchKey(e);
       const k = e.key || '';
+      // Outside macOS the browser keeps Ctrl+W and closes the tab, so Alt+Backspace deletes a word too.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && k === 'Backspace') { killWord(); return true; }
       if (e.ctrlKey && !e.metaKey && !e.altKey) {
         switch (k.toLowerCase()) {
           case 'c': interrupt(); return true;
-          case 'd': if (!ta.value) { eof(); return true; } return false;
+          case 'd': {
+            if (!ta.value) { eof(); return true; }
+            const p = pos(); if (p < ta.value.length) { ta.value = ta.value.slice(0, p) + ta.value.slice(p + 1); caret(p); }
+            return true;
+          }
           case 'l': if (S.mode !== 'running') { scr.clear(); render(); } return true;
           case 'a': caret(0); return true;
           case 'e': if (!acceptGhost()) caret(ta.value.length); return true;
           case 'b': caret(pos() - 1); return true;
           case 'f': if (!(pos() >= ta.value.length && acceptGhost())) caret(pos() + 1); return true;
           case 'u': { const p = pos(); ta.value = ta.value.slice(p); caret(0); return true; }
-          case 'w': {
-            const p = pos(); const before = ta.value.slice(0, p).replace(/\s+$/, ''); const cut = before.replace(/\S+$/, '');
-            ta.value = cut + ta.value.slice(p); caret(cut.length); return true;
-          }
+          case 'w': killWord(); return true;
           case 'r': if (S.mode === 'idle') startSearch(); return true;
           case 'p': if (S.mode === 'idle') histMove(-1); return true;
           case 'n': if (S.mode === 'idle') histMove(1); return true;
@@ -3785,7 +3891,6 @@ window.OS = OS; // for tools/shot.mjs and the console
     win.on('focus', () => { root.classList.remove('terminal-blur'); S.focusInput(); });
     win.on('blur', () => root.classList.add('terminal-blur'));
     win.on('resize', () => { measure(); bump(); });
-    win.on('close', () => { if (S.job) killJob(S.job); sessions.delete(S); });
     S.onKey = (e) => {
       if (!e.key) return;
       const sel = window.getSelection();
@@ -3838,13 +3943,20 @@ window.OS = OS; // for tools/shot.mjs and the console
     return { f, rest };
   }
   // Files or stdin -> [{name, lines}] ; errors print and come back as {err: true}
+  // A stream command's piped stdin comes back as {live: true}: read it with eachLine.
   function readSources(io, files, cmd) {
-    if (!files.length) return [{ name: '-', lines: io.stdin || [] }];
+    const std = () => (io.stdin && !Array.isArray(io.stdin) ? { name: '-', live: true, lines: [] } : { name: '-', lines: io.stdin || [] });
+    if (!files.length) return [std()];
     return files.map((f) => {
-      if (f === '-') return { name: '-', lines: io.stdin || [] };
+      if (f === '-') return std();
       const abs = OS.fs.resolve(io.cwd, f);
       try { return { name: f, lines: splitLines(OS.fs.read(abs)) }; } catch (e) { io.error(errText(cmd, f, e)); return { name: f, err: true, lines: [] }; }
     });
+  }
+  // fn gets each line of a source, a piped one as it arrives. fn returns false to stop reading.
+  async function eachLine(io, src, fn) {
+    if (!src.live) { for (const l of src.lines) if (fn(l) === false) return; return; }
+    for (let l; (l = await io.read()) !== null;) if (fn(l) === false) return;
   }
   const isExec = (abs, dir) => !dir && (/\/bin\/[^/]+$/.test(abs) || safeRead(abs).startsWith('#!'));
   function entryFor(abs, label) {
@@ -3914,13 +4026,13 @@ window.OS = OS; // for tools/shot.mjs and the console
   });
   reg('pwd', 'files', { desc: 'Print the working directory', usage: 'pwd', run(args, io) { io.println(io.cwd); return 0; } });
   const catSpec = (nm) => ({
-    desc: nm === 'cat' ? 'Print files' : 'Print files. There is no pager. There is scrollback', usage: `${nm} [-n] [file...]`,
-    run(args, io) {
+    desc: nm === 'cat' ? 'Print files' : 'Print files. There is no pager. There is scrollback', usage: `${nm} [-n] [file...]`, stream: true,
+    async run(args, io) {
       const o = getopts(args, { bool: 'nA' });
       if (o.bad) { io.error(`${nm}: invalid option -- '${o.bad}'`); return 1; }
       let n = 0;
       const srcs = readSources(io, o.rest, nm);
-      for (const s of srcs) for (const l of s.lines) io.println(o.f.n ? [[String(++n).padStart(6), 'faint'], '  ', l] : l);
+      for (const s of srcs) await eachLine(io, s, (l) => { io.println(o.f.n ? [[String(++n).padStart(6), 'faint'], '  ', l] : l); });
       if (nm !== 'cat' && io.isTTY) io.println('(END)', 'inv');
       return srcs.some((s) => s.err) ? 1 : 0;
     },
@@ -3930,6 +4042,7 @@ window.OS = OS; // for tools/shot.mjs and the console
   syn('more', 'less');
   const headTail = (nm) => ({
     desc: nm === 'head' ? 'The first lines of a file or a pipe' : 'The last lines of a file or a pipe', usage: `${nm} [-n N] [file...]` + (nm === 'tail' ? ' [-f]' : ''),
+    stream: nm === 'head',
     async run(args, io) {
       let n = 10; let follow = false; const rest = [];
       for (let i = 0; i < args.length; i++) {
@@ -3942,11 +4055,11 @@ window.OS = OS; // for tools/shot.mjs and the console
       }
       if (!Number.isFinite(n) || n < 0) { io.error(`${nm}: invalid number of lines`); return 1; }
       const srcs = readSources(io, rest, nm);
-      srcs.forEach((s, i) => {
-        if (s.err) return;
+      for (const [i, s] of srcs.entries()) {
+        if (s.err) continue;
         if (srcs.length > 1) { if (i) io.println(''); io.println(`==> ${s.name} <==`, 'muted'); }
-        (nm === 'head' ? s.lines.slice(0, n) : n ? s.lines.slice(-n) : []).forEach((l) => io.println(l));
-      });
+        if (nm === 'head') { let got = 0; if (n) await eachLine(io, s, (l) => { io.println(l); return ++got < n; }); } else (n ? s.lines.slice(-n) : []).forEach((l) => io.println(l));
+      }
       if (follow) {
         io.println('tail: following. Nothing is being written. It is following anyway. Ctrl+C stops it.', 'faint');
         while (!io.aborted) await io.sleep(1000);
@@ -4012,12 +4125,17 @@ window.OS = OS; // for tools/shot.mjs and the console
       if (o.bad) { io.error(`rm: invalid option -- '${o.bad}'`); return 1; }
       const rec = o.f.r || o.f.R; const force = o.f.f;
       if (!o.rest.length) { if (force) return 0; io.error('rm: missing operand'); return 1; }
-      const targets = o.rest.map((p) => ({ p, abs: OS.fs.resolve(io.cwd, p) }));
-      const sacred = rec && targets.find((t) => isSacred(t.abs));
+      const targets = o.rest.map((p) => ({ p, abs: OS.fs.resolve(io.cwd, p), dots: /(^|\/)\.\.?\/*$/.test(p) }));
+      const sacred = rec && targets.find((t) => !t.dots && isSacred(t.abs));
       if (sacred) { brickyIntervenes(io, tilde(sacred.abs)); return 1; }
       let code = 0;
       for (const t of targets) {
+        if (rec && t.dots) { io.error(`rm: refusing to remove '.' or '..' directory: skipping '${t.p}'`); code = 1; continue; }
         if (!OS.fs.exists(t.abs)) { if (!force) { io.error(`rm: cannot remove '${t.p}': No such file or directory`); code = 1; } continue; }
+        if (rec && (t.abs === io.cwd || io.cwd.startsWith(t.abs + '/'))) {
+          io.error(`rm: refusing to remove '${t.p}': ${t.abs === io.cwd ? 'it is the working directory' : 'the working directory is inside it'}. cd out of it first.`);
+          code = 1; continue;
+        }
         if (OS.fs.isDir(t.abs) && !rec) { io.error(`rm: cannot remove '${t.p}': Is a directory`); code = 1; continue; }
         const deny = denyWrite(t.abs);
         if (deny) { io.error(`rm: cannot remove '${t.p}': ${deny}`); code = 1; continue; }
@@ -4133,8 +4251,8 @@ window.OS = OS; // for tools/shot.mjs and the console
     return segs;
   }
   reg('grep', 'text', {
-    desc: 'Find lines that match', usage: 'grep [-i] [-n] [-r] [-v] [-c] [-l] [-w] pattern [file...]',
-    run(args, io) {
+    desc: 'Find lines that match', usage: 'grep [-i] [-n] [-r] [-v] [-c] [-l] [-w] pattern [file...]', stream: true,
+    async run(args, io) {
       const o = getopts(args, { bool: 'inrRvcwlHEFhs', val: 'e' });
       if (o.bad) { io.error(`grep: invalid option -- '${o.bad}'`); return 2; }
       const f = o.f;
@@ -4157,15 +4275,16 @@ window.OS = OS; // for tools/shot.mjs and the console
       let total = 0;
       for (const s of srcs) {
         if (s.err) continue;
-        let count = 0;
-        s.lines.forEach((l, i) => {
+        let count = 0; let i = 0;
+        await eachLine(io, s, (l) => {
+          i++;
           re.lastIndex = 0;
           if (re.test(l) === !!f.v) return;
           count++; total++;
           if (f.c || f.l) return;
           const segs = [];
           if (showName) segs.push([s.name, 'accent2'], [':', 'info']);
-          if (f.n) segs.push([String(i + 1), 'ok'], [':', 'info']);
+          if (f.n) segs.push([String(i), 'ok'], [':', 'info']);
           if (f.v) segs.push(l); else segs.push(...markMatches(l, re));
           io.println(segs);
         });
@@ -4247,17 +4366,17 @@ window.OS = OS; // for tools/shot.mjs and the console
     },
   });
   reg('tee', 'text', {
-    desc: 'Copy a pipe to files as it passes', usage: 'tee [-a] file...',
-    run(args, io) {
+    desc: 'Copy a pipe to files as it passes', usage: 'tee [-a] file...', stream: true,
+    async run(args, io) {
       const o = getopts(args, { bool: 'a' });
-      const text = (io.stdin || []).map((l) => l + '\n').join('');
+      let text = '';
+      await eachLine(io, readSources(io, [], 'tee')[0], (l) => { text += l + '\n'; io.println(l); });
       let code = 0;
       for (const f of o.rest) {
         const abs = OS.fs.resolve(io.cwd, f); const deny = denyWrite(abs);
         if (deny) { io.error(`tee: ${f}: ${deny}`); code = 1; continue; }
         try { writeFile(abs, (o.f.a && OS.fs.isFile(abs) ? OS.fs.read(abs) : '') + text); } catch (e) { io.error(errText('tee', f, e)); code = 1; }
       }
-      (io.stdin || []).forEach((l) => io.println(l));
       return code;
     },
   });
@@ -4294,6 +4413,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       io.println('');
       io.println([['Pipes ', 'faint'], ['|', 'accent'], ['  chains ', 'faint'], [';  &&  ||', 'accent'], ['  redirects ', 'faint'], ['>  >>  <', 'accent'], ['  variables ', 'faint'], ['$HOME $USER $?', 'accent2']]);
       io.println([['Tab', 'fg'], [' completes. ', 'faint'], ['↑ ↓', 'fg'], [' remember. ', 'faint'], ['Ctrl+R', 'fg'], [' searches. ', 'faint'], ['Ctrl+C', 'fg'], [' stops. ', 'faint'], ['Ctrl+L', 'fg'], [' clears.', 'faint']]);
+      io.println([['Alt+Backspace', 'fg'], [' deletes a word. So does ', 'faint'], ['Ctrl+W', 'fg'], [', but on most systems the browser takes it and closes the tab.', 'faint']]);
       io.println([['help <command>', 'fg'], [' for one command. ', 'faint'], ['man <command>', 'fg'], [' for more words than that.', 'faint']]);
       return 0;
     },
@@ -4515,7 +4635,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     complete: () => [...new Set(OS.wm.list().map((w) => w.app.id))],
     run(args, io) {
       if (!args[0]) { io.error('killall: usage: killall app'); return 1; }
-      if (args[0] === 'bricky') { io.error('killall: bricky: Operation not permitted. He is load-bearing. He was told not to say that.'); return 1; }
+      if (args[0] === 'bricky') { io.error('killall: bricky: Operation not permitted. He is pid 1. Everything else is his child process.'); return 1; }
       const ws = OS.wm.list().filter((w) => w.app.id === args[0]);
       if (!ws.length) { io.error(`${args[0]}: no process found`); return 1; }
       ws.forEach((w) => w.close());
@@ -4995,7 +5115,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       const [sub, ...rest] = args;
       if (!sub) { io.println('npm <command>'); io.println(''); io.println('Usage: npm install | npm run <script> | npm test', 'muted'); return 1; }
       if (sub === 'install' || sub === 'i' || sub === 'ci') return npmInstall(io);
-      if (sub === 'test' || sub === 't') { io.println('> vitest run', 'muted'); await io.sleep(600); if (io.aborted) return 130; io.println(' Test Files  96 passed (96)', 'ok'); io.println('      Tests  812 passed (812)', 'ok'); return 0; }
+      if (sub === 'test' || sub === 't') { io.println('> test-runner run', 'muted'); await io.sleep(600); if (io.aborted) return 130; io.println(' Test Files  96 passed (96)', 'ok'); io.println('      Tests  812 passed (812)', 'ok'); return 0; }
       if (sub === 'run' || sub === 'run-script') {
         const s = rest[0];
         if (!s) { io.println('Scripts available in labs via `npm run`:'); [['dev', 'bin/dev'], ['check', 'lint, types and unit tests'], ['check:ci', "every step of CI's Frontend Checks job"], ['design:sync', 'record the design system sync'], ['test', 'unit tests']].forEach(([k, v]) => { io.println('  ' + k, 'ok'); io.println('    ' + v, 'muted'); }); return 0; }
@@ -5322,11 +5442,11 @@ window.OS = OS; // for tools/shot.mjs and the console
       'Fingerprinted Composer paths need an end-to-end benchmark run before merge. I will describe the run instead.',
       'Ground is 0, first is 1. I am confident about this until the next compaction.',
       'The model scores about 5/10 against the photos. So do the correct answers. I can match that.',
+      'There are two 3D viewers. I will change the one without textures. It is closer.',
     ],
     ui: [
       'This touches the configurator. It has had five design reviews. I will keep the change small, for round 6.',
       'The width is always 3 m. The cost engine prices by area alone. I will not touch the width.',
-      'There are two 3D viewers. I will change the one without textures. It is closer.',
       'The chips name the surface they paint. I will name mine the same way.',
     ],
     test: ['I will not run the full test suite. AGENTS.md was clear about that. I will not run the small one either.'],
@@ -5575,6 +5695,7 @@ window.OS = OS; // for tools/shot.mjs and the console
   reg('sl', 'fun', {
     desc: 'A skip lorry drives across. You meant ls', usage: 'sl',
     async run(args, io) {
+      if (!io.isTTY) { LORRY.forEach((r) => io.println(r.trimEnd())); return 0; }
       const cols = io.cols; const W = Math.max(...LORRY.map((r) => r.length));
       const hds = LORRY.map(() => io.println(''));
       let warned = false;
@@ -5611,6 +5732,17 @@ window.OS = OS; // for tools/shot.mjs and the console
     desc: 'Composer page codes, falling. Ctrl+C to leave', usage: 'matrix',
     async run(args, io) {
       const rows = Math.max(6, io.rows - 2); const cols = io.cols - 1;
+      if (!io.isTTY) {
+        // Into a pipe, the code falls one row at a time, as page codes, so grep and head have something to read.
+        const codes = OS.data.stages.map((s) => s.code);
+        while (!io.aborted) {
+          let row = '';
+          while (row.length < cols - 4) row += Math.random() < 0.45 ? ' '.repeat(1 + Math.floor(Math.random() * 3)) : codes[Math.floor(Math.random() * codes.length)] + ' ';
+          io.println(row.trimEnd());
+          await io.sleep(70);
+        }
+        return 130;
+      }
       const glyphs = 'P1S1F1F2P4P2P3P11P6P7P14P5P13P8P12P9P10M1M2M3M5M4░▒▓0.52.7#$%&*+=<>lunaterragold';
       const hint = io.println('matrix: Ctrl+C to leave.', 'faint');
       const hds = Array.from({ length: rows }, () => io.println(''));
@@ -5654,7 +5786,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     const used = Math.min(998000, 412118 + OS.spend.tokens() + Math.floor(performance.now() / 40));
     return [
       ['OS', `${os} x86_64`],
-      ['Kernel', 'linux-labs 6.22.0-composed'],
+      ['Kernel', '6.22.0-composed'],
       ['Uptime', uptimeText()],
       ['Packages', `${OS.data.stages.length} (stages), ${installed().length} (brick), 1,284 (npm)`],
       ['Shell', `brickty ${VERSION}`],
@@ -6122,7 +6254,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     Object.assign(S, {
       mode: 'dashboard', lines: [''], cy: 0, cx: 0, want: 0, top: 0, left: 0,
       path: null, ft: 'text', eol: true, saved: '', modified: false, orig: new Set(), readonly: null,
-      undo: [], redo: [], seq: 0, reg: { text: '', linewise: false },
+      undo: [], redo: [], seq: 0, pend: null, reg: { text: '', linewise: false },
       count: '', op: null, opCount: '', prefix: '', escs: 0,
       cmd: '', cmdType: ':', hist: OS.store.get('labvim.hist', []), histAt: -1,
       search: '', searchDir: 1, hl: false, msg: null, number: true, rnu: false,
@@ -6151,11 +6283,19 @@ window.OS = OS; // for tools/shot.mjs and the console
     };
     const msg = (t, k = '') => { S.msg = { t, k }; };
     const changed = () => { S.dirty = true; S.modified = text() !== S.saved; updateTitle(); };
-    function snap() {
-      S.undo.push({ lines: S.lines.slice(), cy: S.cy, cx: S.cx });
+    function snap(st = { lines: S.lines.slice(), cy: S.cy, cx: S.cx }) {
+      S.undo.push(st);
       if (S.undo.length > 400) S.undo.shift();
       S.redo = [];
       S.seq++;
+    }
+    // Insert mode entered without a change: the undo step is taken at the first change, so an empty insert leaves undo and redo alone.
+    function pend() { S.pend = { lines: S.lines.slice(), cy: S.cy, cx: S.cx }; }
+    function keepPend() {
+      const p = S.pend;
+      if (!p || (p.lines.length === S.lines.length && p.lines.every((l, i) => l === S.lines[i]))) return;
+      S.pend = null;
+      snap(p);
     }
     function restore(from, to, word) {
       const st = from.pop();
@@ -6182,7 +6322,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       S.lines = ls.length ? ls : [''];
       S.path = p; S.ft = filetype(p, S.lines[0]); S.readonly = readonlyWhy(p);
       S.saved = text(); S.modified = false; S.orig = new Set(S.lines);
-      S.cy = 0; S.cx = 0; S.want = 0; S.top = 0; S.left = 0; S.undo = []; S.redo = []; S.seq = 0; S.dirty = true;
+      S.cy = 0; S.cx = 0; S.want = 0; S.top = 0; S.left = 0; S.undo = []; S.redo = []; S.seq = 0; S.pend = null; S.dirty = true;
       S.mode = 'normal';
       updateTitle();
     }
@@ -6210,10 +6350,11 @@ window.OS = OS; // for tools/shot.mjs and the console
 
     function goldCrash(p) {
       const m = /^\/gold\/houses\/(\d+)\//.exec(p);
-      const target = `${HOME}/gold-overrides/${m ? m[1] + '.yml' : OS.fs.basename(p)}`;
+      const target = `${HOME}/gold-overrides/${m ? m[1] + '.labvim.yml' : OS.fs.basename(p)}`;
       win.crash({
         title: 'E212: gold is never edited, only overridden', code: 'E212 GOLD_IS_READ_ONLY', icon: 'padlock',
-        lines: [`${disp(p)} is gold. People wrote it and people checked it.`, 'labvim can write this buffer as an override instead, at:', disp(target)],
+        lines: [`${disp(p)} is gold. People wrote it and people checked it.`, 'labvim can write this buffer as an override instead, at:', disp(target),
+          ...(m ? [`Not ${m[1]}.yml. That name is the Gold Labeller's, and a copy of this file does not label house ${m[1]}.`] : [])],
         actions: [
           {
             label: 'Write the override', primary: true,
@@ -6221,7 +6362,7 @@ window.OS = OS; // for tools/shot.mjs and the console
               try { OS.fs.mkdir(OS.fs.dirname(target), { parents: true }); OS.fs.write(target, text()); } catch (e) { msg(`E212: ${e.message}`, 'err'); render(); return; }
               S.path = target; S.readonly = null; S.saved = text(); S.modified = false;
               addRecent(target); updateTitle();
-              msg(`"${disp(target)}" written. Gold is unchanged.`, 'ok');
+              msg(`"${disp(target)}" written. Gold is unchanged.${m ? ' The Gold Labeller does not count it.' : ''}`, 'ok');
               render(); win.after(0, focusInput);
             },
           },
@@ -6446,6 +6587,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       S.reg = { text: s.slice(a, b), linewise: false };
       S.lines[S.cy] = s.slice(0, a) + s.slice(b);
       S.cx = a; clampX(); changed();
+      return true;
     }
     function replaceChars(ch, n) {
       const s = line();
@@ -6456,7 +6598,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     }
     function startInsert(how) {
       if (S.readonly) msg('W10: Warning: Changing a readonly file', 'warn');
-      snap();
+      if (how === 'o' || how === 'O') snap(); else pend();
       S.mode = 'insert';
       if (how === 'a' && line().length) S.cx++;
       if (how === 'A') S.cx = line().length;
@@ -6480,6 +6622,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         S.cx += ch.length;
       }
       S.want = vcol(S.cy, S.cx);
+      keepPend();
       changed();
     }
     function newline(indent) {
@@ -6509,7 +6652,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         else if (S.cy < S.lines.length - 1) S.lines.splice(S.cy, 2, s + line(S.cy + 1));
       } else if (k === '<CR>') newline(true);
       else if (k === '<Tab>') { const n = IW - (vcol(S.cy, S.cx) % IW); S.lines[S.cy] = s.slice(0, S.cx) + ' '.repeat(n) + s.slice(S.cx); S.cx += n; }
-      else if (k === '<C-w>') { const m = /(\w+|[^\w\s]+)?\s*$/.exec(s.slice(0, S.cx)); const n = m ? m[0].length || 1 : 1; S.lines[S.cy] = s.slice(0, S.cx - n) + s.slice(S.cx); S.cx = Math.max(0, S.cx - n); }
+      else if (k === '<C-w>') { if (S.cx === 0) { insKey('<BS>'); return; } const m = /(\w+|[^\w\s]+)?\s*$/.exec(s.slice(0, S.cx)); const n = m ? m[0].length || 1 : 1; S.lines[S.cy] = s.slice(0, S.cx - n) + s.slice(S.cx); S.cx = Math.max(0, S.cx - n); }
       else if (k === '<C-u>') { const ind = /^\s*/.exec(s)[0].length; const to = S.cx > ind ? ind : 0; S.lines[S.cy] = s.slice(0, to) + s.slice(S.cx); S.cx = to; }
       else if (k === '<Left>') S.cx = Math.max(0, S.cx - 1);
       else if (k === '<Right>') S.cx = Math.min(s.length, S.cx + 1);
@@ -6518,6 +6661,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       else if (k === '<End>') S.cx = s.length;
       else return;
       S.want = vcol(S.cy, S.cx);
+      keepPend();
       changed();
     }
 
@@ -6572,11 +6716,14 @@ window.OS = OS; // for tools/shot.mjs and the console
       let re;
       const fl = (flags.includes('g') ? 'g' : '') + (flags.includes('i') ? 'i' : '');
       try { re = new RegExp(pat, fl); } catch { re = new RegExp(escRe(pat), fl); }
-      const expand = (args) => rep.replace(/\\(\d|&|\\)|&/g, (t, g1) => {
-        if (t === '&') return args[0];
-        if (g1 === '&' || g1 === '\\') return g1;
-        return args[Number(g1)] ?? '';
-      });
+      const expand = (args) => {
+        const groups = args.length - (typeof args.at(-1) === 'object' ? 4 : 3);
+        return rep.replace(/\\(\d|&|\\)|&/g, (t, g1) => {
+          if (t === '&') return args[0];
+          if (g1 === '&' || g1 === '\\') return g1;
+          return Number(g1) <= groups ? args[Number(g1)] ?? '' : '';
+        });
+      };
       let total = 0; let touched = 0; let last = -1;
       const next = S.lines.slice();
       for (let y = y1; y <= y2; y++) {
@@ -6705,7 +6852,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       if (!op) { moveTo(m); return; }
       const before = S.undo.length;
       applyOp(op, m);
-      if (op === 'c' && S.mode !== 'insert' && S.undo.length === before) { snap(); S.mode = 'insert'; }
+      if (op === 'c' && S.mode !== 'insert' && S.undo.length === before) { pend(); S.mode = 'insert'; }
     }
     function scrollBy(rowsN, moveCursor) {
       S.top = OS.clamp(S.top + rowsN, 0, Math.max(0, S.lines.length - 1));
@@ -6735,7 +6882,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       const half = Math.max(1, Math.floor(S.rows / 2));
       switch (k) {
         case 'i': case 'a': case 'I': case 'A': case 'o': case 'O': startInsert(k); break;
-        case 's': delChars(n, false); S.mode = 'insert'; break;
+        case 's': if (!delChars(n, false)) pend(); S.mode = 'insert'; break;
         case 'S': opLines('c', S.cy, Math.min(S.lines.length - 1, S.cy + n - 1)); break;
         case 'x': case '<Del>': delChars(n, false); break;
         case 'X': delChars(n, true); break;
@@ -6944,7 +7091,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       if (m === 'finder') { finderKey(k); return; }
       if (m === 'command' || m === 'search') { cmdKey(k); return; }
       if (m === 'insert') {
-        if (k === '<Esc>' || k === '<C-c>') { S.mode = 'normal'; S.cx = Math.max(0, S.cx - 1); clampX(); S.want = vcol(S.cy, S.cx); return; }
+        if (k === '<Esc>' || k === '<C-c>') { S.mode = 'normal'; S.pend = null; S.cx = Math.max(0, S.cx - 1); clampX(); S.want = vcol(S.cy, S.cx); return; }
         if (k.length > 1 && k[0] === '<') { insKey(k); return; }
         insText(k, raw);
         return;
@@ -6972,7 +7119,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       if (v) feed([...v], v.length > 1);
     });
     ta.addEventListener('compositionend', () => { const v = ta.value; ta.value = ''; if (v) feed([...v], true); });
-    const focusInput = () => { if (!win.closed && document.activeElement !== ta && !win.body.querySelector('.ui-crash')) ta.focus({ preventScroll: true }); };
+    const focusInput = () => { if (!win.closed && document.activeElement !== ta && !win.el.querySelector('.ui-crash')) ta.focus({ preventScroll: true }); };
 
     // ---------- render ----------
     function lineHtml(s, ft, st, left, ncols, re, ig) {
@@ -7592,7 +7739,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     }
 
     // Comments: TODOs, banned words, comments that repeat the code
-    const mark = { js: '//', css: '/*', ruby: '#', yaml: '#', sh: '#', py: '#', lua: '--' }[lang];
+    const mark = COMMENT_MARK[lang];
     comments.forEach(({ line: i, text: c }) => {
       const m = /\b(TODO|FIXME|XXX|HACK)\b:?\s*(.*)/.exec(c);
       if (m) {
@@ -7707,7 +7854,7 @@ window.OS = OS; // for tools/shot.mjs and the console
   const cardText = (m, eyes = eyesFor(m)) => [CARD_HEAD, '', ...octo(eyes), '', 'Gristle', '', ...QUOTE, '', ...stats(m).map(statLine)];
 
   // ---------- targets ----------
-  const costFor = (t) => Math.max(0.03, Math.round((0.02 + t.text.split('\n').length * 0.00003) * 100) / 100);
+  const costFor = (t) => Math.max(0.03, Math.round((0.02 + (t.kind === 'os' ? B.lines.length : t.text.split('\n').length) * 0.00003) * 100) / 100);
   const osTarget = () => ({
     kind: 'os', text: B.text, name: 'labs-os.js', label: 'Labs OS itself', short: 'bundle',
     loc: (i) => { const w = where(i); return `${w.file}:${w.line}`; },
@@ -7810,7 +7957,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       io.println();
       if (args.includes('--card')) return 0;
       if (m.left <= 0) {
-        io.println('gristle: PATIENCE is 0. It comes back at 00:00 UTC, as 3. It has never been 4.', 'bad');
+        io.println(`gristle: PATIENCE is 0. It comes back at 00:00 UTC, as ${PATIENCE}. Base PATIENCE is 1. Tomorrow is also a generous day.`, 'bad');
         io.println('Gristle is not reviewing anything else today. This is not about you. It is about the code.', 'muted');
         return 1;
       }
@@ -7831,16 +7978,17 @@ window.OS = OS; // for tools/shot.mjs and the console
         status.set(`  ${g}`, 'muted');
       }
       const res = review(t);
-      const was = m.left;
-      m.left -= 1; m.reviews += 1; m.lastTotal = res.total; m.lastHigh = res.counts.High;
-      saveMood(m);
+      const fresh = mood();
+      const was = fresh.left;
+      fresh.left = Math.max(0, fresh.left - 1); fresh.reviews += 1; fresh.lastTotal = res.total; fresh.lastHigh = res.counts.High;
+      saveMood(fresh);
       status.set(`Reviewed ${t.label}: ${fmt(res.lines)} lines, ${res.lang}. Charged ${OS.usd(cost)}.`, 'muted');
       io.println(`${res.total} finding${res.total === 1 ? '' : 's'}: ${res.counts.High} High, ${res.counts.Medium} Medium, ${res.counts.Low} Low. The worst ${CAP} of each kind are shown.`, res.counts.High ? 'bad' : res.counts.Medium ? 'warn' : 'ok');
       io.println();
       if (res.findings.length) (tableLines(res.findings, io.cols || 100) || blockLines(res.findings, io.cols || 100)).forEach((l) => io.println(l.t, l.c));
       io.println();
       io.println(`Gristle says: ${verdict(res, t)}`, 'accent');
-      io.println(statLine(['PATIENCE', m.left]) + `   (was ${was})`, m.left ? 'warn' : 'bad');
+      io.println(statLine(['PATIENCE', fresh.left]) + `   (was ${was})`, fresh.left ? 'warn' : 'bad');
       return res.total ? 1 : 0;
     },
   });
@@ -7877,7 +8025,7 @@ window.OS = OS; // for tools/shot.mjs and the console
 .gr-tbl th { text-align: left; color: var(--muted); font-weight: 700; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; }
 .gr-tbl td { padding: 7px 8px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); vertical-align: top; white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
 .gr-tbl tr.go { cursor: pointer; } .gr-tbl tr.go:hover td { background: color-mix(in srgb, var(--sel) 55%, transparent); }
-.gr-tbl .id { color: var(--faint); white-space: nowrap; } .gr-tbl td.loc { color: var(--info); overflow-wrap: normal; word-break: keep-all; } .gr-tbl .why { color: var(--muted); } .gr-tbl .more { color: var(--faint); display: block; margin-top: 2px; }
+.gr-tbl .id { color: var(--faint); white-space: nowrap; } .gr-tbl td.loc { color: var(--info); } .gr-tbl .why { color: var(--muted); } .gr-tbl .more { color: var(--faint); display: block; margin-top: 2px; }
 .gr-tbl tr.fixed td { text-decoration: line-through; opacity: .5; }
 .gr-sev { display: inline-block; padding: 0 7px; border-radius: 4px; font-size: 11px; font-weight: 800; border: 1px solid var(--border); color: var(--muted); }
 .gr-sev.High { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 55%, transparent); background: color-mix(in srgb, var(--bad) 12%, transparent); }
@@ -7938,7 +8086,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         card.innerHTML = `<pre>${head}\n\n<span class="oc">${esc(octo(eyes).join('\n'))}</span>\n\n<span class="nm">Gristle</span>\n\n<span class="q">${esc(QUOTE.join('\n'))}</span>\n\n${rows.join('\n')}</pre>`;
         S.shown = st;
         note.innerHTML = m.left > 0
-          ? `PATIENCE: <b>${m.left}</b> of ${PATIENCE} today. Each review uses one and a few cents. It refills at 00:00 UTC and has never been above ${PATIENCE}.`
+          ? `PATIENCE: <b>${m.left}</b> of ${PATIENCE} today. Base PATIENCE is 1. Today is a generous day. Each review uses one, and a few cents. It refills at 00:00 UTC.`
           : `PATIENCE: <b>0</b>. <span class="no">Gristle is not reviewing anything else today.</span> It refills at 00:00 UTC.`;
       }
 
@@ -8020,7 +8168,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       function refuse() {
         win.crash({
           title: 'Gristle has no patience left today', code: 'GRS-0x0000 PATIENCE_EXHAUSTED', icon: 'octopus',
-          lines: ['PATIENCE is 0. It comes back at 00:00 UTC, as 3.', 'It has never been 4.', 'Gristle is not reviewing anything else today. This is not about you. It is about the code.'],
+          lines: [`PATIENCE is 0. It comes back at 00:00 UTC, as ${PATIENCE}.`, 'Base PATIENCE is 1. Tomorrow is also a generous day.', 'Gristle is not reviewing anything else today. This is not about you. It is about the code.'],
           actions: [{ label: 'Wait until tomorrow', primary: true, run: () => { OS.spend.tomorrow(); } }, { label: 'OK' }],
         });
       }
@@ -8066,9 +8214,15 @@ window.OS = OS; // for tools/shot.mjs and the console
           S.msg = { k: 'ok', t: `Removed trailing whitespace from ${fx.n} line${fx.n === 1 ? '' : 's'} of the pasted code. It is in the box above. Copy it back out yourself.` };
           drawSrc(); drawOut(); return;
         }
+        let now;
+        try { now = OS.fs.read(R.t.path); } catch (e) { S.msg = { k: 'bad', t: e.message }; drawOut(); return; }
+        if (now !== R.t.text) {
+          S.msg = { k: 'bad', t: `Refused. ${disp(R.t.path)} changed after I reviewed it. My line numbers are about a file that is not there any more. Review it again.` };
+          drawOut(); return;
+        }
         try { OS.fs.write(R.t.path, fx.text); } catch (e) { S.msg = { k: 'bad', t: e.message }; drawOut(); return; }
-        R.fixed = true;
-        S.msg = { k: 'ok', t: `Removed trailing whitespace from ${fx.n} line${fx.n === 1 ? '' : 's'} in ${disp(R.t.path)}, and saved it. I have not read it again. Patience is finite.` };
+        R.fixed = true; R.t.text = fx.text;
+        S.msg = { k: 'ok', t: `Removed trailing whitespace from ${fx.n} line${fx.n === 1 ? '' : 's'} in ${disp(R.t.path)}, and saved it. I read it again first. Nobody had touched it.` };
         drawOut();
       }
       S.target = (a) => {
@@ -8084,7 +8238,13 @@ window.OS = OS; // for tools/shot.mjs and the console
         drawBar(); drawSrc(); drawOut();
         if (!S.busy) run();
       };
-      S.layout = () => root.classList.toggle('narrow', win.width < 820);
+      // Measured in the side-by-side layout: below 640 px the findings table has no room for its Rationale column.
+      S.layout = () => {
+        const y = root.scrollTop;
+        root.classList.remove('narrow');
+        root.classList.toggle('narrow', right.clientWidth < 640);
+        root.scrollTop = y;
+      };
       S.off = OS.on('spend', () => { drawCard(); drawBar(); });
       win.every(3800, () => {
         if (S.busy || mood().left <= 0) return;
@@ -8092,7 +8252,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         win.after(160, () => { S.eyes = null; drawCard(); });
       });
 
-      S.layout(); drawCard(); drawBar(); drawSrc(); drawOut();
+      drawCard(); S.layout(); drawBar(); drawSrc(); drawOut();
       if (arg) S.target(arg);
     },
     onArg(win, arg) { win.state.target?.(arg); },
@@ -8184,8 +8344,8 @@ window.OS = OS; // for tools/shot.mjs and the console
     floor_diff: { default: 'What each storey has that the storey below does not.' },
     detect_features: { default: 'Windows and doors on the front photo. A different model in place of the old one.' },
     mark_features: {
-      default: 'Places features where they were boxed. They were boxed 0.3 m in front of the wall.',
-      front_snap_1: 'Snaps front windows boxed off the wall onto it. Doors stay where they were boxed.',
+      default: 'Places features where they were boxed: windows 0.3 m in front of the wall. A recessed door\'s recess is measured the wrong way, so the door stands 0.3 m off the front faces.',
+      front_snap_1: 'Snaps front windows boxed off the wall onto it. A recessed door still stands 0.3 m off the front faces: its recess, measured the wrong way.',
       front_snap_2: 'Also moves a recessed front door onto the front faces in line with it.',
       front_snap_3: 'front_snap_2, and the side windows too.',
     },
@@ -8260,7 +8420,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     let door = bay ? (bay.side === 'left' ? 'right' : 'left') : (r() < 0.5 ? 'left' : 'right');
     const partySide = r() < 0.5 ? 'left' : 'right';
     const chR = r(); const chSide = r() < 0.5 ? 'left' : 'right';
-    let chimney = chR < 0.78 ? (type === 'detached' ? chSide : (type === 'end-terrace' ? 'party' : 'party')) : null;
+    let chimney = chR < 0.78 ? (type === 'detached' ? chSide : 'party') : null;
     const fr = r();
     let finish = fr < 0.55 ? 'brick' : fr < 0.8 ? 'render' : fr < 0.9 ? 'pebbledash' : 'stone';
     let wallI = Math.floor(r() * LIB[finish].length); let roofI = Math.floor(r() * ROOF_LIB.length); let doorI = Math.floor(r() * DOOR_HEX.length);
@@ -8444,7 +8604,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     put('plan_sheet', {
       ok: scale === 1,
       sum: T.tileOOR ? (scale !== 1 ? `largest drawing: floor 0 · tile scaled ×${f1(T.factor)}` : `largest drawing: floor 0 · factor ×${f1(T.factor)} out of range: tile left unscaled`) : 'largest drawing: floor 0 · tile scaled ×1.0',
-      defect: scale !== 1 ? `P14: an out-of-range plan tile was applied: ${f1(T.factor)}× gold size` : null, mark: `P14 unscaled tile: ${f1(T.factor)}× gold size`,
+      defect: scale !== 1 ? `P14: an out-of-range plan tile was applied: ${f1(T.factor)}× gold size` : null, mark: `P14 out-of-range factor applied: ${f1(T.factor)}× gold size`,
     });
     put('align_floors', {
       ok: !dropped,
@@ -8465,9 +8625,9 @@ window.OS = OS; // for tools/shot.mjs and the console
     put('mark_features', {
       ok: !winFloat && !doorFloat,
       sum: A.mark_features === 'default' ? `${nFront + 1} features marked where they were boxed`
-        : A.mark_features === 'front_snap_1' ? `${nFront + 1} marked · ${plural(M.front.wins.length, 'window')} snapped onto the wall`
+        : A.mark_features === 'front_snap_1' ? `${nFront + 1} marked · ${plural(M.front.wins.length, 'window')} snapped onto the wall${doorFloat ? ' · door left 0.3 m off the front faces' : ''}`
           : `${nFront + 1} marked · windows and door on the front faces`,
-      defect: winFloat ? 'P10: front windows 0.3 m in front of the wall' : doorFloat ? 'P10: front door 0.3 m in front of the wall' : null, mark: winFloat ? 'P10 windows 0.3 m off the wall' : 'P10 door 0.3 m off the wall',
+      defect: winFloat ? 'P10: front windows 0.3 m in front of the wall' : doorFloat ? 'P10: front door left 0.3 m off the front faces (its recess, measured the wrong way)' : null, mark: winFloat ? 'P10 windows 0.3 m off the wall' : 'P10 door 0.3 m off the front faces: recess measured the wrong way',
     });
     {
       const projList = [T.bay && 'bay', T.porch && porchKnown && 'porch'].filter(Boolean);
@@ -8993,7 +9153,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     return P;
   }
 
-  // ---------- transforms: mirrored plans and rear-as-front move the features; an unscaled tile scales everything ----------
+  // ---------- transforms: mirrored plans and rear-as-front move the features; an applied out-of-range factor scales everything ----------
   function featTx(M) {
     const { xc, zc } = M; const X = M.X;
     if (!X.mirror && !X.flip) return null;
@@ -9096,7 +9256,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       else res.push(...bx(a, b, 0, 0.55, site.zPF - 0.24, site.zPF, wallHex, { kind: 'fwall', skip: ['bottom'] }));
     }
     const F0 = { kind: 'fence', skip: ['bottom'] };
-    res.push(...bx(site.px0 - 0.03, site.px0 + 0.03, 0, 1.6, site.zRear, zb - (T.rear && T.partyL ? 0 : 0), C.fence, F0));
+    res.push(...bx(site.px0 - 0.03, site.px0 + 0.03, 0, 1.6, site.zRear, zb, C.fence, F0));
     res.push(...bx(site.px1 - 0.03, site.px1 + 0.03, 0, 1.6, site.zRear, zb, C.fence, F0));
     res.push(...bx(site.px0, site.px1, 0, 1.6, site.zRear - 0.03, site.zRear + 0.03, C.fence, F0));
     return res;
@@ -9273,7 +9433,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     a.plan_sheet = P([M.xc, M.ridgeY, M.zc]);
     a.align_floors = P([M.x1, M.eaves, M.zf]);
     a.floor_cells = P([M.x1 + X.shift, SH * 1.5, M.zf]);
-    const w = M.front.wins[0];
+    const w = X.winFloat ? M.front.wins[0] : null;
     a.mark_features = w ? P([M.x0 + w.a + w.w / 2, w.y + w.hh, M.zf + 0.3], true) : P([doorX, 2.2, M.zf + 0.3], true);
     a.massing = P([doorX, 2.0, M.zf + 0.1], true);
     a.roofer = P([M.x1 - 0.5, M.ridgeY, M.zc]);
@@ -9321,6 +9481,8 @@ window.OS = OS; // for tools/shot.mjs and the console
     const headline = regress.length ? `✗ worse than main (${plural(regress.length, 'regression')})` : '✓ not worse than main';
     return { rows, regress, improve, pass, fail, none, headline, ok: !regress.length, score: run.score, mainScore: main.score, isolated: keys.length < KEYS.length };
   }
+  // An isolated run stops before M4, so it has no composed-model score to record.
+  const scoreFields = (b) => (b.isolated ? { score: null } : { score: b.score, mainScore: b.mainScore });
 
   // ---------- the note: one hypothesis, a $10.00 cap, a write-up at the end ----------
   const HYP = [
@@ -9356,14 +9518,17 @@ window.OS = OS; // for tools/shot.mjs and the console
       const v = this.get();
       if (!v.runs.length) return { ok: false, message: `H-${v.n} has no runs to write up. Run something first. It costs money.` };
       const regress = v.runs.filter((r) => r.regress > 0);
-      const better = v.runs.filter((r) => r.improve > 0 && r.score > r.mainScore + 0.05 && !r.regress);
+      const scored = v.runs.filter((r) => typeof r.score === 'number' && typeof r.mainScore === 'number');
+      const better = scored.filter((r) => r.improve > 0 && r.score > r.mainScore + 0.05 && !r.regress);
       const finding = regress.length ? 'negative' : better.length ? 'positive' : 'inconclusive';
-      const last = v.runs[v.runs.length - 1];
+      const last = scored[scored.length - 1];
       const text = finding === 'negative'
         ? `Worse than main on ${plural(regress.length, 'run')}. Main stays as it is.`
         : finding === 'positive'
           ? `Not worse than main, and the composed model scored ${f1(better[0].score)}/10 against main's ${f1(better[0].mainScore)}/10. A tenth of a point. Repeat it on a larger dev set before believing it.`
-          : `Not worse than main. The composed model scored ${f1(last.score)}/10, as main does. So the kit and the question list limit the result, not the reading.`;
+          : last
+            ? `Not worse than main. The composed model scored ${f1(last.score)}/10, as main does. So the kit and the question list limit the result, not the reading.`
+            : 'Not worse than main on the stages that ran. Every run was isolated, so M4 never composed a model and nothing was scored against the photos.';
       const next = { n: v.n + 1, spent: 0, hyp: hypOf(v.n + 1), runs: [] };
       const follow = [`H-${v.n + 1}: ${hypOf(v.n + 1)}`, `H-${v.n + 2}: ${hypOf(v.n + 2)} (queued)`];
       const md = [
@@ -9388,6 +9553,7 @@ window.OS = OS; // for tools/shot.mjs and the console
   // ---------- the runner, shared by the window and the terminal ----------
   async function execute(comp, keys, io) {
     let usd = 0; const ran = [];
+    const est = r2(keys.reduce((s, k) => s + comp.out[k].usd, 0));
     for (const k of keys) {
       const o = comp.out[k];
       const ms = Math.max(140, o.secs * 260);
@@ -9402,7 +9568,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       }
       if (o.usd > 0) {
         const v = Note.get();
-        if (v.spent + o.usd > CAP + 1e-9) return { refused: true, kind: 'note', message: Note.capSentence(v, o.usd), at: k, ran, usd };
+        if (v.spent + o.usd > CAP + 1e-9) return { refused: true, kind: 'note', message: Note.capSentence(v, est), at: k, ran, usd };
         const r = OS.spend.add(o.usd, `${k} ${apText(comp.A[k])}, house ${comp.T.label}`, 'composer');
         if (!r.ok) return { refused: true, kind: 'day', message: r.message, at: k, ran, usd };
         Note.charge(o.usd); usd = r2(usd + o.usd);
@@ -9428,6 +9594,11 @@ window.OS = OS; // for tools/shot.mjs and the console
   for (const s of STAGES) BYCOL[COL[s.key]].push(s.key);
   const NROW = Math.max(...BYCOL.map((c) => c.length));
   const EDGES = STAGES.flatMap((s) => s.needs.map((n) => [n, s.key]));
+  function dependants(key) {
+    const out = new Set(); const todo = [key];
+    while (todo.length) { const u = todo.pop(); for (const [a, b] of EDGES) if (a === u && !out.has(b)) { out.add(b); todo.push(b); } }
+    return out;
+  }
   const ROW = (() => {
     const row = {};
     BYCOL.forEach((keys) => keys.forEach((k, i) => { row[k] = i; }));
@@ -9567,7 +9738,7 @@ window.OS = OS; // for tools/shot.mjs and the console
 .composer-sec { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:8px 10px; min-height:0; }
 .composer-sec .hd { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
 .composer-sec .hd .ui-title { flex:1; font-size:10px; }
-.composer-id { font-size:18px; font-weight:800; letter-spacing:-.01em; line-height:1.15; }
+.composer-id { font-size:18px; font-weight:800; letter-spacing:-.01em; line-height:1.15; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
 .composer-addr { color:var(--muted); font-size:11px; }
 .composer-desc { font-size:11px; margin-top:3px; color:var(--fg); }
 .composer-picks { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
@@ -9581,7 +9752,7 @@ window.OS = OS; // for tools/shot.mjs and the console
 .composer-bh.ok { color:var(--good); } .composer-bh.bad { color:var(--bad); } .composer-bh.idle { color:var(--muted); }
 .composer-bsub { font-size:11px; color:var(--muted); margin-top:2px; }
 .composer-counts { display:flex; gap:10px; font-size:11px; margin-top:4px; }
-.composer-diffs { margin-top:6px; display:flex; flex-direction:column; gap:3px; overflow:auto; min-height:0; }
+.composer-diffs { margin-top:6px; display:flex; flex-direction:column; gap:3px; overflow:auto; min-height:32px; }
 .composer-diff { font-size:10.5px; line-height:13px; padding:3px 6px; border-radius:4px; background:var(--surface2); border-left:2px solid var(--border); cursor:pointer; flex:none; }
 .composer-diff:hover { background:var(--sel); }
 .composer-diff .l1 { display:flex; gap:6px; align-items:baseline; }
@@ -9614,7 +9785,7 @@ window.OS = OS; // for tools/shot.mjs and the console
 .composer-doc p { margin:8px 0; }
 .composer-doc ul { margin:4px 0 8px; padding-left:18px; color:var(--muted); font-size:11.5px; }
 .composer-doc .row { justify-content:flex-end; margin-top:10px; }
-.composer.is-narrow { grid-template-columns:minmax(0,1fr) 252px; grid-template-areas:"top top" "graph graph" "view view" "log side"; grid-template-rows:auto auto minmax(0,1fr) 124px; }
+.composer.is-narrow { grid-template-columns:minmax(0,1fr) 252px; grid-template-areas:"top top" "graph graph" "view view" "log side"; grid-template-rows:auto auto minmax(0,1fr) 148px; }
 .composer.is-narrow .composer-listing, .composer.is-narrow .composer-diffs, .composer.is-narrow .composer-pr, .composer.is-narrow .composer-runs, .composer.is-narrow .composer-hyp { display:none; }
 .composer.is-narrow .composer-sec { padding:6px 8px; }
 .composer.is-narrow .composer-bsub { display:none; }
@@ -10105,19 +10276,21 @@ window.OS = OS; // for tools/shot.mjs and the console
         S.running = true; S.abort = false; S.phase = 'running'; S.runComp = comp; S.bench = null;
         runBtn.textContent = '■ Stop'; runBtn.classList.add('stop');
         paintApproaches(); paintBench(null, null, 'Running…');
-        bsub.textContent = `Scored against gold after M4. Main scored ${benchmark(S.main, S.main).pass} ✓ · ${benchmark(S.main, S.main).fail} ✗ on this house.`;
+        const mb = benchmark(S.main, S.main);
+        bsub.textContent = `Scored against gold after M4. Main scored ${mb.pass} ✓ · ${mb.fail} ✗ on this house.`;
         const selKey = S.selected;
         if (selKey) nodes[selKey].el.classList.remove('sel');
         S.selected = null;
         for (const s of STAGES) { nodes[s.key].el.classList.remove('regress'); setBadge(s.key, undefined); }
         const t0 = performance.now();
         const done = new Set();
+        const stale = iso ? dependants(keys[0]) : new Set();
         if (iso) {
           const sel = BY[keys[0]];
           for (const s of STAGES) {
-            if (BY[s.key].i < sel.i) { setNode(s.key, 'stored', { out: comp.out[s.key] }); done.add(s.key); }
-            else if (s.key === sel.key) setNode(s.key, 'queued');
-            else setNode(s.key, 'stale');
+            if (s.key === sel.key) setNode(s.key, 'queued');
+            else if (stale.has(s.key)) setNode(s.key, 'stale');
+            else { setNode(s.key, 'stored', { out: comp.out[s.key] }); if (BY[s.key].i < sel.i) done.add(s.key); }
           }
           log(`isolated ${sel.code} ${sel.key} · ${apText(A[sel.key])} on house ${comp.T.label}; upstream read from ${stored.label}`, 'info');
         } else {
@@ -10195,7 +10368,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         }
         paintBench(b, comp);
         const changed = KEYS.filter((k) => A[k] !== MAIN[k]);
-        const recorded = Note.addRun({ house: comp.T.label, what: iso ? `${keys[0]}: ${apText(A[keys[0]])} (isolated)` : (changed.map((k) => `${k}: ${apText(A[k])}`).join(', ') || 'all main'), headline: b.headline, regress: b.regress.length, improve: b.improve.length, score: b.score, mainScore: b.mainScore, usd: spent }, noteN);
+        const recorded = Note.addRun({ house: comp.T.label, what: iso ? `${keys[0]}: ${apText(A[keys[0]])} (isolated)` : (changed.map((k) => `${k}: ${apText(A[k])}`).join(', ') || 'all main'), headline: b.headline, regress: b.regress.length, improve: b.improve.length, ...scoreFields(b), usd: spent }, noteN);
         const v = Note.get();
         if (!recorded) log(`H-${noteN} was written up during this run, so the run is not recorded in H-${v.n}.`, 'warn');
         log(`benchmark vs gold: ${b.pass} ✓ · ${b.fail} ✗ · ${b.none} not scored${iso ? '' : ` · composed model ${f1(b.score)}/10 against the photos (main ${f1(b.mainScore)}/10)`}`, 'muted');
@@ -10205,7 +10378,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         log(`spent ${OS.usd(spent)} · H-${v.n} ${OS.usd(v.spent)} of ${OS.usd(CAP)} · today ${OS.usd(OS.spend.today())} of ${OS.usd(OS.spend.cap)}`, 'muted');
         sysLog(`[${OS.now().toISOString()}] composer ${iso ? 'isolated ' + keys[0] : 'run'} house ${comp.T.label}: ${b.headline} · ${OS.usd(spent)}`);
         const base = `${comp.T.kind === 'id' ? `House ${comp.T.label}` : comp.T.label} · ${iso ? `isolated ${BY[keys[0]].code}` : 'composed'}`;
-        const sub = iso ? `${BY[keys[0]].code} re-run on stored upstream outputs · ${plural(STAGES.length - BY[keys[0]].i - 1, 'downstream stage')} now stale` : `${comp.faces} faces · ${f1(comp.score)}/10 against the photos · ${OS.usd(spent)}`;
+        const sub = iso ? `${BY[keys[0]].code} re-run on stored upstream outputs · ${stale.size ? `${plural(stale.size, 'downstream stage')} now stale` : 'no stage needs it, so nothing is stale'}` : `${comp.faces} faces · ${f1(comp.score)}/10 against the photos · ${OS.usd(spent)}`;
         caption(base, sub); capT.dataset.base = base; capS.dataset.base = sub;
         gprog.textContent = `${iso ? 'isolated' : `${STAGES.length} / ${STAGES.length}`} · ${((performance.now() - t0) / 1000).toFixed(1)}s · ${OS.usd(spent)}`;
         paintApproaches(); paintNote(); paintListing(comp, comp);
@@ -10350,6 +10523,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         layoutGraph(); view.request();
       };
       S.key = (e) => {
+        if (win.el.querySelector('.ui-crash, .composer-sheet')) return;
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const k = e.key.toLowerCase();
         if (k === 'r') { S.running ? stop() : run(); e.preventDefault(); }
@@ -10377,7 +10551,6 @@ window.OS = OS; // for tools/shot.mjs and the console
       const S = win.state;
       const house = typeof arg === 'string' ? arg : arg && (arg.house || arg.input);
       if (house && house !== S.input && !S.api.loadHouse(house)) return;
-      if (arg && arg.approaches) for (const [k, a] of Object.entries(arg.approaches)) S.api.setApproach(k, a);
       if (arg && arg.run) S.api.run();
     },
     onKey(win, e) { win.state.key?.(e); },
@@ -10399,8 +10572,11 @@ window.OS = OS; // for tools/shot.mjs and the console
       if (a.startsWith('--stages=')) { stages = a.slice(9); continue; }
       const m = a.match(/^approach=(.*)$/i);
       if (m) {
-        for (const part of m[1].split(',').filter(Boolean)) {
+        const parts = m[1].split(',').filter(Boolean);
+        if (!parts.length) errors.push('APPROACH takes stage:name, e.g. APPROACH=massing:door_fit_1');
+        for (const part of parts) {
           const [st, ap] = part.split(':');
+          if (!st || !ap) { errors.push('APPROACH takes stage:name, e.g. APPROACH=massing:door_fit_1'); continue; }
           if (!BY[st]) { errors.push(`unknown stage '${st}'. Try: composer stages`); continue; }
           const list = approachList(st);
           const want = ap === 'before_cap' ? STORED : ap;
@@ -10469,7 +10645,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     io.println(b.headline, b.ok ? 'ok' : 'bad');
     const changed = KEYS.filter((k) => A[k] !== MAIN[k]);
     const what = iso ? `${keys.map((k) => `${k}: ${apText(A[k])}`).join(', ')} (isolated)` : (changed.map((k) => `${k}: ${apText(A[k])}`).join(', ') || 'all main');
-    const recorded = Note.addRun({ house: T.label, what, headline: b.headline, regress: b.regress.length, improve: b.improve.length, score: b.score, mainScore: b.mainScore, usd: res.usd }, v0.n);
+    const recorded = Note.addRun({ house: T.label, what, headline: b.headline, regress: b.regress.length, improve: b.improve.length, ...scoreFields(b), usd: res.usd }, v0.n);
     if (!recorded) io.println(`H-${v0.n} was written up during this run, so the run is not recorded in the new note.`, 'warn');
     const v = Note.get();
     io.println(`spent ${OS.usd(res.usd)} · H-${v.n} ${OS.usd(v.spent)} of ${OS.usd(CAP)} · today ${OS.usd(OS.spend.today())} of ${OS.usd(OS.spend.cap)}`, 'muted');
@@ -10674,9 +10850,6 @@ window.OS = OS; // for tools/shot.mjs and the console
 
   // £ per m² of floor, low and high. The cost engine prices by area alone.
   const RATE = { rear: [2050, 2750], side: [1950, 2650], infill: [2350, 3150], loft: [1650, 2250], wrap: [2250, 3000] };
-  const FACADE = { rear: 0.9, side: 1.15, infill: 0.55, wrap: 0.85, loft: 0.45 };
-  const WALL_DELTA = { 'red-brick': [0, 0], 'yellow-brick': [10, 25], 'white-render': [-15, 0], zinc: [110, 170], timber: [35, 65] };
-  const ROOF_DELTA = { slate: [0, 0], clay: [18, 30], concrete: [-12, -4], zinc: [95, 150], timber: [30, 55] };
   const GLAZING = { rear: [180, 520], side: [120, 340], infill: [420, 980], wrap: [260, 650], loft: [110, 300] };
   const APR = 0.079;
 
@@ -10694,13 +10867,9 @@ window.OS = OS; // for tools/shot.mjs and the console
   function estimate(d) {
     if (d.ext === 'existing') return null;
     const A = AREAS[d.ext][d.size];
-    const fac = A * FACADE[d.ext];
     const [rl, rh] = RATE[d.ext];
-    const wall = d.ext === 'loft' ? [0, 0] : WALL_DELTA[d.wall] || [0, 0];
-    const roof = ROOF_DELTA[d.roofMat] || [0, 0];
-    const roofArea = d.ext === 'loft' ? fac : A;
     const v = {
-      shell: [A * rl + fac * wall[0] + roofArea * roof[0], A * rh + fac * wall[1] + roofArea * roof[1]],
+      shell: [A * rl, A * rh],
       glazing: [A * GLAZING[d.ext][0], A * GLAZING[d.ext][1]],
       kitchen: [9000, 28000],
       bathroom: [6000, 15000],
@@ -10713,8 +10882,8 @@ window.OS = OS; // for tools/shot.mjs and the console
     const pre = [...base, 'contingency'];
     v.vat = [sum(pre, 0) * 0.2, sum(pre, 1) * 0.2];
     const rows = ROWS.map((r) => ({ ...r, low: r500(v[r.key][0]), high: r500(v[r.key][1]), on: on(r.key) }));
-    const all = [...pre, 'vat'];
-    return { area: A, rows, low: r500(sum(all, 0)), high: r500(sum(all, 1)) };
+    const total = (f) => rows.filter((r) => r.on).reduce((s, r) => s + r[f], 0);
+    return { area: A, rows, low: total('low'), high: total('high') };
   }
   const money = (n) => '£' + Math.round(n).toLocaleString('en-GB');
   const range = (lo, hi) => `${money(lo)} – ${money(hi)}`;
@@ -11863,9 +12032,9 @@ window.OS = OS; // for tools/shot.mjs and the console
         return { key: k, label: ROOF_LABELS[k], icon: k, smallIcon: true, removed, sub: removed ? 'Removed in review' : 'Same price', cfg: 'roof-' + k };
       }), () => st.d.roofShape[st.d.ext], (k) => setDesign({ roofShape: { ...st.d.roofShape, [st.d.ext]: k } }));
       roofs.el.dataset.fx = 'radius gap selected option';
-      const walls = tileGroup('mats', () => WALL_OPTIONS.map(([k, n]) => ({ key: k, label: n, sw: k, cfg: 'wall-' + k })), () => st.d.wall, (k) => setDesign({ wall: k }));
+      const walls = tileGroup('mats', () => WALL_OPTIONS.map(([k, n]) => ({ key: k, label: n, sw: k, sub: 'Same price', cfg: 'wall-' + k })), () => st.d.wall, (k) => setDesign({ wall: k }));
       walls.el.dataset.fx = 'radius gap selected';
-      const roofMats = tileGroup('mats', () => [...ROOF_OPTIONS, ...(st.d.ext === 'loft' ? LOFT_EXTRA : [])].map(([k, n]) => ({ key: k, label: n.replace(' tiles', ''), sw: k, cfg: 'roofmat-' + k })), () => st.d.roofMat, (k) => setDesign({ roofMat: k }));
+      const roofMats = tileGroup('mats', () => [...ROOF_OPTIONS, ...(st.d.ext === 'loft' ? LOFT_EXTRA : [])].map(([k, n]) => ({ key: k, label: n.replace(' tiles', ''), sw: k, sub: 'Same price', cfg: 'roofmat-' + k })), () => st.d.roofMat, (k) => setDesign({ roofMat: k }));
       roofMats.el.dataset.fx = 'radius gap selected';
 
       const sizeInfo = h('div', { class: K('note') }, h('span', { html: IC.info }).firstChild,
@@ -12495,7 +12664,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       C('product', 'Move the price bar up again, so it clears the feedback prompt.', { kind: 'priceBarOffset', delta: -4 }),
       C('ui', 'Two columns of tiles reads calmer.', { kind: 'tileCols', value: 2 }),
       C('arch', 'A gabled side roof needs a valley gutter nobody has drawn. Remove the Gabled roof option from the side extension.', { kind: 'option', ext: 'side', option: 'gabled', on: false }, 'Reverses round 7'),
-      C('arch', 'Steeper again. The first-floor windows can cope.', { kind: 'roofPitch', delta: 5 }),
+      C('arch', 'Five degrees steeper. It now sheds rain in two drawings.', { kind: 'roofPitch', delta: 5 }),
     ],
     9: [
       C('product', 'Three columns showed more options above the fold.', { kind: 'tileCols', value: 3 }, 'Reverses round 8'),
@@ -12647,17 +12816,16 @@ window.OS = OS; // for tools/shot.mjs and the console
 .$mtile svg{width:auto;transition:height .4s}
 .$mtile.$sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:var(--fg)}
 .$mfill .$mtile.$sel{background:var(--accent);color:var(--on-accent);box-shadow:none}
-.$mtile.$rm{border-style:dashed;background:transparent;opacity:.6}
 .$mrow{display:grid;grid-template-columns:repeat(3,1fr);transition:gap .4s}
 .$msw{display:flex;gap:7px}
 .$msw i{display:block;width:26px;height:26px;transition:border-radius .4s}
 .$mrow .$mtile{height:22px}
 .$mprice{flex:none;display:flex;align-items:center;gap:6px;padding:8px 10px 9px;border-top:1px solid var(--border);background:var(--surface);box-shadow:0 -8px 16px -10px rgba(0,0,0,.35);transition:margin .4s,border-radius .4s}
-.$mprice.$float{margin-left:8px;margin-right:8px;border:1px solid var(--border)}
+.$mprice.$float{margin-left:4px;margin-right:4px;padding-left:8px;padding-right:8px;border:1px solid var(--border)}
 .$mprice .$ml{flex:1;min-width:0;overflow:hidden}
 .$mprice b{display:block;font-weight:760;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;transition:font-size .3s}
 .$mprice u{font-size:8px;color:var(--fg);text-underline-offset:2px}
-.$mprice em{font-style:normal;font-size:7.5px;color:var(--muted);margin-left:5px}
+.$mprice em{font-style:normal;font-size:7.5px;color:var(--muted);margin-left:5px;white-space:nowrap}
 .$msave{flex:none;height:24px;padding:0 9px;display:flex;align-items:center;gap:4px;font-size:8.5px;font-weight:650;background:color-mix(in srgb,var(--accent) 17%,var(--surface));white-space:nowrap;transition:border-radius .4s}
 .$msave svg{width:9px;height:9px;color:var(--accent)}
 `;
@@ -12701,13 +12869,12 @@ window.OS = OS; // for tools/shot.mjs and the console
     const types = ['Existing', 'Rear', 'Side', 'Infill', 'Loft', 'Wrap'];
     const tiles = h('div', { class: K('mtiles'), dataset: { anchor: 'tiles' }, style: { gridTemplateColumns: `repeat(${s.tileCols},1fr)`, gap: `${s.gap * 0.6}px` } },
       ...types.map((t, i) => h('div', { class: K('mtile' + (i === 1 ? ' sel' : '')), dataset: { anchor: i === 1 ? 'sel' : i === 0 ? 'icon' : '' }, style: { borderRadius: r + 'px' }, html: GLYPH(s.iconScale) + `<span>${t}</span>` })));
-    const removed = !!s.removed['side:gabled'];
-    const roofRow = h('div', { class: K('mrow'), dataset: { anchor: 'roofRow' }, style: { gap: `${s.gap * 0.6}px` } },
-      ...['Flat', 'Pitched', 'Gabled'].map((t, i) => h('div', { class: K('mtile' + (i === 0 ? ' sel' : '') + (i === 2 && removed ? ' rm' : '')), style: { borderRadius: r + 'px' } }, i === 2 && removed ? 'Removed' : t)));
+    const roofRow = h('div', { class: K('mrow'), style: { gap: `${s.gap * 0.6}px` } },
+      ...['Flat', 'Pitched'].map((t, i) => h('div', { class: K('mtile' + (i === 1 ? ' sel' : '')), style: { borderRadius: r + 'px' } }, t)));
     const vatInBar = s.vatTick !== 'heading';
     const bar = h('div', { class: K('mprice' + (s.priceBarOffset < 0 ? ' float' : '')), dataset: { anchor: 'bar' }, style: { marginBottom: `${-s.priceBarOffset}px`, borderRadius: s.priceBarOffset < 0 ? r + 'px' : '0' } },
       h('div', { class: K('ml') },
-        h('b', { dataset: { anchor: 'price' }, style: { fontSize: `${s.priceSize * 0.56}px` } }, '£65,000 – £97,000'),
+        h('b', { dataset: { anchor: 'price' }, style: { fontSize: `${s.priceSize * 0.56}px` } }, '£65,000 – £97,500'),
         h('u', { dataset: { anchor: 'link' } }, s.text.breakdown),
         h('em', { dataset: { anchor: 'vat' } }, vatInBar ? '☐ incl. VAT' : 'excl. VAT')),
       h('div', { class: K('msave'), dataset: { anchor: 'save' }, style: { borderRadius: r + 'px' }, html: HEART + `<span>${OS.esc(s.text.save)}</span>` }));
@@ -12721,7 +12888,7 @@ window.OS = OS; // for tools/shot.mjs and the console
             h('div', { class: K('mhome'), style: { borderRadius: r + 'px' } }, h('i'), h('span', null, '12 Purlin Road, Eavesham')),
             heading('Extension type', 'heading'), tiles,
             heading('Size'), h('div', { class: K('mrow'), style: { gap: `${s.gap * 0.6}px` } }, ...['Small', 'Medium', 'Large'].map((t, i) => h('div', { class: K('mtile' + (i === 1 ? ' sel' : '')), style: { borderRadius: r + 'px' } }, t))),
-            heading('Roof'), roofRow,
+            heading('Roof', 'roofRow'), roofRow,
             heading('Wall material'), h('div', { class: K('msw') }, ...['#a85b42', '#d2b27c', '#efebe2', '#808b95', '#ab7c50'].map((c, i) => h('i', { style: { background: c, borderRadius: r * 0.6 + 'px', boxShadow: i === 0 ? '0 0 0 2px var(--surface), 0 0 0 3px var(--accent)' : 'inset 0 0 0 1px rgba(0,0,0,.15)' } }))),
             ),
           bar)));
@@ -12870,7 +13037,7 @@ window.OS = OS; // for tools/shot.mjs and the console
           title: 'Approval is not a state this board has',
           icon: 'paint-brush',
           code: 'DR-0x000A NO_FINAL_ROUND',
-          lines: [`The configurator has been through ${n - 1 === 1 ? 'one round' : `${n - 1} rounds`} this cycle. Approving it would end the cycle.`, `Round ${n} is on the agenda. Round ${n === 10 ? 1 : n + 1} is already booked.`],
+          lines: [`The configurator has been through ${n - 1 === 0 ? 'no rounds' : n - 1 === 1 ? 'one round' : `${n - 1} rounds`} this cycle. Approving it would end the cycle.`, `Round ${n} is on the agenda. Round ${n === 10 ? 1 : n + 1} is already booked.`],
           details: ['design_review.approve!', '  raise NoFinalRound, "every UI gets one more design review"', `  round: ${n}, roles: 3, meanings of design: 3`],
           actions: [{ label: `Hold round ${n}`, primary: true }, { label: 'Close app', run: () => win.close() }],
         });
@@ -13061,11 +13228,11 @@ window.OS = OS; // for tools/shot.mjs and the console
   const STATE_LABEL = { spawning: 'spawning', building: 'building', reviewing: 'reviewing', ci: 'waiting on CI', stalled: 'stalled', done: 'done', killed: 'killed' };
   const TOK = { spawning: [45, 20], building: [95, 40], reviewing: [185, 70], ci: [2, 2], stalled: [0, 0], done: [0, 0], killed: [0, 0] };
   const DUR = { spawning: [3, 5], building: [10, 22], reviewing: [7, 14], ci: [8, 16], done: [24, 30], killed: [1.4, 1.4], stalled: [Infinity, Infinity] };
-  const WAITS = ['gh pr checks --watch', 'bin/rspec_all, in the background', 'a reviewer subagent', 'npm run check:ci', 'a CI watch on a cancelled run', 'sleep 300 && gh pr view'];
+  const WAITS = ['pr checks --watch', 'bin/rspec_all, in the background', 'a reviewer subagent', 'npm run check:ci', 'a CI watch on a cancelled run', 'sleep 300 && pr view'];
   const SAYS = {
-    spawning: ['Reading AGENTS.md.', 'Reading CLAUDE.md, which says to read AGENTS.md.'],
+    spawning: ['Reading AGENTS.md.', 'Reading CLOD.md, which says to read AGENTS.md.'],
     building: ['Running only the specs for the files I changed.', 'Rebasing on main. No merge commits.', 'craft cleanup', 'Writing the failing test first.', 'bundle exec standardrb --fix', 'Touching only what the card asks for.'],
-    reviewing: ['Spec compliance: passed.', 'Craft review: one comment restates the code.', 'Production review: no blocking findings.', 'Gristle: 4 findings, 1 of them grumpy.'],
+    reviewing: ['Spec compliance: passed.', 'Craft review: one comment restates the code.', 'Production review: no blocking findings.', 'Gristle: 4 findings. All grumpy. One fair.'],
     ci: ['Frontend Checks: 14 of 15. The 15th is the design-sync gate.', 'RSpec: 2 of 8 shards done.', 'Waiting for the Lookbook coverage check.'],
     stalled: ['I will check back when CI finishes.', 'I will continue once the specs finish.', 'Waiting for the background job to report back.'],
     done: ['Merged by rebase. Not worse than main.'],
@@ -13088,10 +13255,18 @@ window.OS = OS; // for tools/shot.mjs and the console
   // ---------- the simulation ----------
   function makeSim(rnd) {
     const S = {
-      t: 0, rate: 1000, lanes: [], sel: 0, scroll: 0, log: [], total: [], peak: 0, nextCard: 2750, nextPr: 2604,
-      disk: 74.2, diskShown: 74.2, alert80: false, alert90: false, pruning: null, full: false, reaped: 0, reportedGone: 0, hover: null,
+      t: 0, rate: 1000, lanes: [], sel: 0, selPid: null, scroll: 0, log: [], total: [], peak: 0, nextCard: 2750, nextPr: 2604,
+      disk: 74.2, diskShown: 74.2, alert80: false, alert90: false, pruning: null, full: false, reportedGone: 0, hover: null,
       titlePool: titles(), lastAuto: 0,
     };
+    // The selection follows a lane, not a row: S.sel is that lane's row now, or the nearest row once it has gone.
+    S.syncSel = () => {
+      const i = S.lanes.findIndex((l) => l.pid === S.selPid);
+      S.sel = i >= 0 ? i : OS.clamp(S.sel, 0, Math.max(0, S.lanes.length - 1));
+      S.selPid = S.lanes[S.sel]?.pid ?? null;
+      return S.lanes[S.sel];
+    };
+    S.setSel = (i) => { S.sel = OS.clamp(i, 0, Math.max(0, S.lanes.length - 1)); S.selPid = S.lanes[S.sel]?.pid ?? null; };
     const between = ([a, b]) => a + rnd() * (b - a);
     S.say = (lane) => OS.pick(SAYS[lane.state], rnd);
     S.enter = (lane, state) => {
@@ -13103,8 +13278,10 @@ window.OS = OS; // for tools/shot.mjs and the console
     S.newLane = (n, state, age) => {
       if (!S.titlePool.length) S.titlePool = titles();
       const title = S.titlePool.splice(Math.floor(rnd() * S.titlePool.length), 1)[0];
+      let pid;
+      do pid = 30000 + Math.floor(rnd() * 39000); while (S.lanes.some((l) => l.pid === pid));
       const lane = {
-        pid: 30000 + Math.floor(rnd() * 39000), n, name: 'lane-' + n, card: 'RL-' + n, title,
+        pid, n, name: 'lane-' + n, card: 'RL-' + n, title,
         state, prev: null, since: S.t - rnd() * 6, dur: 0, tok: TOK[state][0], tokT: TOK[state][0], hist: [], ctx: CTX_MAX * (0.12 + rnd() * 0.6),
         ctxShown: 0, compactUntil: 0, states: [], spent: age * 0.0016 * (0.6 + rnd()), born: S.t - age, pr: null, msg: '', wait: '', stalledAt: S.t,
       };
@@ -13186,17 +13363,17 @@ window.OS = OS; // for tools/shot.mjs and the console
         }
         return r.ok;
       };
-      const selected = () => S.lanes[S.sel];
+      const selected = () => S.syncSel();
       const removeLane = (lane) => {
         const i = S.lanes.indexOf(lane); if (i < 0) return;
         S.reportedGone += lane.spent;
         S.lanes.splice(i, 1);
-        S.sel = OS.clamp(S.sel, 0, Math.max(0, S.lanes.length - 1));
+        S.syncSel();
       };
 
       const A = {
-        up() { S.sel = Math.max(0, S.sel - 1); S.dirty = true; },
-        down() { S.sel = Math.min(S.lanes.length - 1, S.sel + 1); S.dirty = true; },
+        up() { S.syncSel(); S.setSel(S.sel - 1); S.dirty = true; },
+        down() { S.syncSel(); S.setSel(S.sel + 1); S.dirty = true; },
         kill() {
           const l = selected(); if (!l || l.state === 'killed') return;
           const after = { building: `Its branch keeps ${2 + Math.floor(rnd() * 4)} commits called craft cleanup.`, spawning: 'It had not finished reading AGENTS.md.', done: 'It had already finished. It was killed anyway.' }[l.state] || 'The PR stays open. Nobody will close it.';
@@ -13219,10 +13396,10 @@ window.OS = OS; // for tools/shot.mjs and the console
           if (S.lanes.length >= 12) { S.push('The mastermind runs 12 lanes at most. It has read the note about parallel siblings.', 'warn'); S.dirty = true; return; }
           if (S.full) return;
           const n = S.nextCard++;
-          if (!charge(0.18, `spawn lane-${n}: read AGENTS.md, CLAUDE.md and RL-${n}`)) { S.nextCard--; return; }
+          if (!charge(0.18, `spawn lane-${n}: read AGENTS.md, CLOD.md and RL-${n}`)) { S.nextCard--; return; }
           const lane = S.newLane(n, 'spawning', 0);
           lane.ctx = lane.ctxShown = CTX_MAX * 0.06; lane.spent = 0; lane.born = S.t; lane.since = S.t; lane.pr = null; lane.tok = 0;
-          S.lanes.push(lane); S.sel = S.lanes.length - 1;
+          S.lanes.push(lane); S.setSel(S.lanes.length - 1);
           S.push(`spawned ${lane.name} for ${lane.card}: "${lane.title}". It read AGENTS.md first.`, 'info');
           S.dirty = true;
         },
@@ -13231,7 +13408,7 @@ window.OS = OS; // for tools/shot.mjs and the console
           const from = S.disk; const to = Math.min(from, 51 + rnd() * 4);
           const gb = (from - to) * DISK_GB / 100;
           const images = Math.max(1, Math.round(gb / 0.9));
-          S.pruning = { from, to, t0: performance.now(), dur: 1800 / OS.speed, gb, images, label: 'docker image prune -a' };
+          S.pruning = { from, to, t0: performance.now(), dur: 1800 / OS.speed };
           S.push(`docker image prune -a on dev-runner: ${images} images, ${gb.toFixed(1)} GB reclaimed.`, 'good');
           S.full = false;
           S.alert90Note?.dismiss?.();
@@ -13277,7 +13454,7 @@ window.OS = OS; // for tools/shot.mjs and the console
             case 'ci':
               if (r < 0.5) { S.enter(l, 'done'); S.push(`${l.name}: CI green. Merged by rebase. Not worse than main.`, 'good'); } else if (r < 0.7) { S.enter(l, 'stalled'); S.push(`${l.name} started a background wait: ${l.wait}. Nothing will wake it.`, 'bad'); } else { S.enter(l, 'building'); S.push(`${l.name}: ${OS.pick(CI_BACK, rnd)}`, 'muted'); }
               break;
-            case 'done': S.push(`${l.name} exited 0. ${l.card} moved to Done.`, 'faint'); removeLane(l); S.reaped++; break;
+            case 'done': S.push(`${l.name} exited 0. ${l.card} moved to Done.`, 'faint'); removeLane(l); break;
             case 'killed': removeLane(l); break;
             default: break;
           }
@@ -13302,7 +13479,7 @@ window.OS = OS; // for tools/shot.mjs and the console
           if (S.disk >= 90 && !S.alert90) {
             S.alert90 = true;
             S.push('dev-runner / passed 90%. CI builds images faster than anyone deletes them.', 'bad');
-            S.alert90Note = OS.notify({ app: 'dev-runner', icon: 'desk-computer', urgency: 'critical', title: 'dev-runner: root disk passed 90%', body: 'Press p in lanetop to prune Docker images.', actions: [{ label: 'Prune', run: () => A.prune() }] });
+            S.alert90Note = OS.notify({ app: 'dev-runner', icon: 'desk-computer', urgency: 'critical', title: 'dev-runner: root disk passed 90%', body: 'Press p in lanetop to prune Docker images.', actions: [{ label: 'Prune', run: () => (win.closed ? OS.osd('lanetop is closed. Nothing pruned.') : A.prune()) }] });
             win.flash();
           }
           if (S.disk >= 100 && !S.full) {
@@ -13374,7 +13551,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       const fn = map[k];
       if (fn) { e.preventDefault(); fn(); }
     },
-    unmount(win) { (win.state.offs || []).forEach((f) => f()); },
+    unmount(win) { (win.state.offs || []).forEach((f) => f()); win.state.S?.alert90Note?.dismiss?.(); },
   });
 
   // ---------- drawing the screen ----------
@@ -13391,7 +13568,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     }
     const g = S.grid; const C = S.C; const m = S.m;
     g.clear();
-    S.sel = OS.clamp(S.sel, 0, Math.max(0, S.lanes.length - 1));
+    S.syncSel();
     const W = m.cols; const R = m.rows;
     if (W < 40 || R < 12) {
       const msg = `lanetop needs 40 × 12. It has ${W} × ${R}.`;
@@ -13707,7 +13884,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         const mx = x0 + 3 + tw;
         g.put(mx, yy + 1, fit(`"${l.msg}"`, inner.x + inner.w - mx - 1), dim ? C.faint : C.muted);
       }
-      g.hit(inner.x, yy, inner.w, rh, () => { S.sel = idx; }, 'row:' + l.pid);
+      g.hit(inner.x, yy, inner.w, rh, () => { S.selPid = l.pid; S.syncSel(); }, 'row:' + l.pid);
     }
     if (lanes.length > S.scroll + fitN) g.put(inner.x + inner.w - 12, inner.y + inner.h - detailH - 1, `↓ ${lanes.length - S.scroll - fitN} more`, C.faint);
     if (!lanes.length) g.put(inner.x + 2, inner.y + 2, 'No lanes. Press s to spawn one. It costs $0.18 and reads AGENTS.md.', C.muted);
@@ -13720,7 +13897,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       const ago = fmtAge(S.t - l.stalledAt);
       const finished = fmtAge(Math.max(0, S.t - l.stalledAt - 9));
       const line = {
-        spawning: 'reading AGENTS.md, then CLAUDE.md, which says to read AGENTS.md',
+        spawning: 'reading AGENTS.md, then CLOD.md, which says to read AGENTS.md',
         building: `building on ${l.card.toLowerCase()}-${slug(l.title)} · touching only what the card asks for`,
         reviewing: `PR #${l.pr} · review gates: spec compliance, craft, production`,
         ci: `PR #${l.pr} · Frontend Checks 14 of 15 · the 15th is the design-sync gate`,
@@ -13762,7 +13939,7 @@ window.OS = OS; // for tools/shot.mjs and the console
   const TICK = 600;
   const MAX_NODES = 1400;
   const FINDINGS = ['a comment restates the code', 'one more test, please', 'a magic number', 'rename one variable back', 'the spec description has a typo', 'the design system check is out of date', '"load-bearing" in a comment', 'a merge commit; Labs merges by rebase', 'an unused import from the last fix'];
-  const SUBTASKS = ['the change itself', 'the tests for it', 'the Lookbook preview', 'the analytics event', 'a feature flag', 'a note in agent_docs/', 'the Storybook story', 'the follow-ups from review'];
+  const SUBTASKS = ['the change itself', 'the tests for it', 'the Lookbook preview', 'the analytics event', 'a feature flag', 'a note in agent_docs/', 'the design-system card', 'the follow-ups from review'];
   const KINDS = { spec: 'spec', craft: 'craft', production: 'prod', gristle: 'gristle', design: 'design', tone: 'tone', bench: 'bench' };
 
   const CSS = `
@@ -13841,6 +14018,7 @@ window.OS = OS; // for tools/shot.mjs and the console
 `;
 
   const fmt = (n) => Math.round(n).toLocaleString('en-GB');
+  const many = (n, one, more = one + 's') => `${fmt(n)} ${n === 1 ? one : more}`;
   const mmss = (ticks) => { const s = Math.floor(ticks * TICK / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 
   registerApp({
@@ -13953,7 +14131,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       function start() {
         if (run && (run.phase === 'running' || run.phase === 'stopping')) return;
         win.body.querySelector('.uc-report')?.remove();
-        win.body.querySelectorAll('.ui-crash').forEach((n) => n.remove());
+        win.el.querySelectorAll('.ui-crash').forEach((n) => n.remove());
         const size = SIZES.find((s) => s.key === sizeSel.value) || SIZES[1];
         const prompt = input.value.trim() || 'Something, quickly';
         input.value = prompt;
@@ -13961,7 +14139,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         run = {
           phase: 'running', t: 0, size, prompt, short: prompt.length > 44 ? prompt.slice(0, 43) + '…' : prompt,
           nodes: [], seq: {}, count: 0, implN: 0, hidden: 0, hiddenActive: 0, prs: [], metaReviews: [],
-          opened: 0, approvedN: 0, archived: 0, add: 0, del: 0, spend: 0, logged: 0, layoutDirty: true, exceeded: 0, rot: 0, spendHist: [], maxDepth: 1,
+          opened: 0, approvedN: 0, archived: 0, add: 0, del: 0, craft: 0, spend: 0, logged: 0, layoutDirty: true, exceeded: 0, rot: 0, spendHist: [], maxDepth: 1,
         };
         st.run = run;
         const o = spawn(null, 'orchestrator');
@@ -14021,6 +14199,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         const add = 40 + Math.floor(R() * 360); const del = Math.floor(R() * add * 0.7);
         const pr = { n: run.prs.length + 1, ...prTitle(), by: impl.name, reviews: [], approvals: 0, changes: 0, approved: false };
         run.prs.push(pr); run.opened++; run.add += add; run.del += del;
+        if (pr.short === 'craft cleanup') run.craft += add + del;
         impl.pr = pr; impl.state = 'waiting'; impl.busy = 99;
         log(`${nm(impl)} opened <b>PR #${pr.n}</b> “${OS.esc(pr.title)}” <span class="good">+${add}</span> <span class="bad">−${del}</span>.`);
         const kinds = ['spec', 'craft', 'production'];
@@ -14064,7 +14243,7 @@ window.OS = OS; // for tools/shot.mjs and the console
             if (a.fixing) {
               a.fixing = false;
               const add = 4 + Math.floor(R() * 90); const del = 4 + Math.floor(R() * 90);
-              run.add += add; run.del += del;
+              run.add += add; run.del += del; run.craft += add + del;
               const kind = a.fixKind || 'craft';
               log(`${nm(a)} pushed “craft cleanup” to PR #${a.pr.n} <span class="good">+${add}</span> <span class="bad">−${del}</span>.`);
               const rr = spawn(a, 'reviewer', kind, { pr: a.pr, impl: a }); if (rr) rr.busy = 2 + Math.floor(R() * 3);
@@ -14200,7 +14379,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         S.agents.b.textContent = fmt(run.count);
         S.agents.s.textContent = `${fmt(n)} active`;
         S.opened.b.textContent = fmt(run.opened);
-        S.opened.s.textContent = run.opened ? `${run.prs.reduce((x, p) => x + p.reviews.length, 0)} reviews` : ' ';
+        S.opened.s.textContent = run.opened ? many(run.prs.reduce((x, p) => x + p.reviews.length, 0), 'review') : ' ';
         S.approved.b.textContent = fmt(run.approvedN);
         S.approved.s.textContent = run.approvedN ? '0 merged' : ' ';
         S.lines.b.textContent = fmt(run.add + run.del);
@@ -14231,16 +14410,18 @@ window.OS = OS; // for tools/shot.mjs and the console
         lines.push(['dim', `Workflow size: ${guideline(r.size)}. Agents used: ${fmt(r.count)}. Ended by: ${endedBy}.`], ['', '']);
         lines.push(['h3', '### Shipped'], ['', '- Nothing. 0 features.'], ['', '']);
         lines.push(['h3', '### Reviewed']);
-        if (!r.prs.length) lines.push(['', '- No PRs were opened, so the reviewers reviewed each other.']);
+        if (!r.prs.length) lines.push(['', r.nodes.some((a) => a.role === 'architect' && a.reviewed) ? '- No PRs were opened. The architect\'s arrow is still under review.' : '- No PRs were opened.']);
         for (const pr of r.prs.slice(0, 10)) {
           const ap = pr.reviews.filter((x) => x.verdict === 'approved').length;
-          lines.push(['', `- PR #${pr.n} "${pr.short}": ${pr.reviews.length} reviews, ${ap} approving. ${pr.approved ? 'Approved. Not merged.' : 'Open.'}`]);
+          lines.push(['', `- PR #${pr.n} "${pr.short}": ${many(pr.reviews.length, 'review')}, ${ap} approving. ${pr.approved ? 'Approved. Not merged.' : 'Open.'}`]);
         }
-        if (r.prs.length > 10) lines.push(['', `- ${r.prs.length - 10} more PRs, reviewed in the same way.`]);
-        for (const m of r.metaReviews.slice(0, 10)) lines.push(['', `- The review by ${m.of}${m.pr ? ` of PR #${m.pr}` : ''}, reviewed by ${m.by}`]);
-        if (r.metaReviews.length > 10) lines.push(['', `- ${fmt(r.metaReviews.length - 10)} more reviews of reviews.`]);
+        if (r.prs.length > 10) lines.push(['', `- ${many(r.prs.length - 10, 'more PR')}, reviewed in the same way.`]);
+        for (const m of r.metaReviews.slice(0, 10)) lines.push(['', `- The ${m.of === 'architect' ? 'arrow drawn' : 'review'} by ${m.of}${m.pr ? ` of PR #${m.pr}` : ''}, reviewed by ${m.by}`]);
+        if (r.metaReviews.length > 10) lines.push(['', `- ${many(r.metaReviews.length - 10, 'more review')} of reviews.`]);
         lines.push(['', ''], ['h3', '### Changed']);
-        lines.push(['', `- ${fmt(r.add + r.del)} lines (+${fmt(r.add)} / -${fmt(r.del)}). Most of them craft cleanup.`], ['', '']);
+        const total = r.add + r.del;
+        const craft = r.craft * 2 > total ? 'Most of them craft cleanup.' : r.craft ? 'Some of them craft cleanup.' : 'None of them craft cleanup yet.';
+        lines.push(['', total ? `- ${fmt(total)} lines (+${fmt(r.add)} / -${fmt(r.del)}). ${craft}` : '- 0 lines. The craft cleanup is booked for the next run.'], ['', '']);
         lines.push(['h3', '### Spend']);
         lines.push(['', `- ${OS.usd(r.spend)} for this run. Cost per feature: cannot divide by zero features.`], ['', '']);
         lines.push(['dim', 'Not worse than main.']);
@@ -14438,7 +14619,12 @@ window.OS = OS; // for tools/shot.mjs and the console
   const TYPES = OS.data.extensionTypes;
   const WIDTH = OS.data.displayWidthM;
   const n1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
-  const m = (v) => `${n1(v)} m`;
+  // Within 0.1 of a limit, one decimal would show a fail as a tie: show two decimals there (three under 5 mm).
+  const nAt = (v, ...lims) => { const d = Math.min(...lims.map((l) => Math.abs(v - l))); return d === 0 || d > 0.0999 ? n1(v) : v.toFixed(d < 0.005 ? 3 : 2); };
+  const NEAR = { depth: [3, 4], height: [4], eaves: [3], boundary: [2] };
+  const mOf = (x, k) => `${nAt(x[k], ...NEAR[k])} m`;
+  const gap = (d) => (d > 0.0999 ? `${n1(d)} m` : d >= 0.005 ? `${Math.round(d * 100)} cm` : d >= 0.0005 ? `${Math.round(d * 1000)} mm` : 'under 1 mm');
+  const vsLimit = (v, lim) => (v === lim ? 'Exactly at the limit.' : v < lim ? `${gap(lim - v)} to spare.` : `${gap(v - lim)} over.`);
   const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
   // ---------- the rules ----------
@@ -14456,28 +14642,29 @@ window.OS = OS; // for tools/shot.mjs and the console
     else if (x.depth == null || x.garden == null) add('A.1(b)', 'Half the curtilage', 'half the garden', x.depth == null ? 'depth not given' : 'garden not given', 'unknown', 'Can\'t tell becomes unknown.');
     else {
       const area = x.depth * WIDTH; const half = x.garden / 2;
-      add('A.1(b)', 'Half the curtilage', `${n1(half)} m²`, `${n1(area)} m²`, area <= half ? 'pass' : 'fail', `${n1(x.depth)} × ${WIDTH} m. The width is a display convention.`);
+      add('A.1(b)', 'Half the curtilage', `${nAt(half, area)} m²`, `${nAt(area, half)} m²`, area <= half ? 'pass' : 'fail', `${nAt(x.depth, ...NEAR.depth, half / WIDTH)} × ${WIDTH} m. The width is a display convention.`);
     }
     // A.1(f): rear depth
     if (!rear) add('A.1(f)', 'Rear depth', '3 m, or 4 m detached', loft ? 'no depth' : 'not a rear extension', 'n/a', loft ? 'A loft has no depth, only volume.' : 'The rear depth limit applies to rear extensions.');
     else if (x.depth == null) add('A.1(f)', 'Rear depth', '3 m, or 4 m detached', 'not given', 'unknown', 'Can\'t tell becomes unknown.');
     else if (x.detached == null) {
       const r = x.depth <= 3 ? 'pass' : x.depth > 4 ? 'fail' : 'unknown';
-      add('A.1(f)', 'Rear depth', '3 m, or 4 m detached', m(x.depth), r, 'Detached or not was not given.');
+      add('A.1(f)', 'Rear depth', '3 m, or 4 m detached', mOf(x, 'depth'), r, 'Detached or not was not given.');
     } else {
       const lim = x.detached ? 4 : 3;
-      add('A.1(f)', 'Rear depth', `${lim} m (${x.detached ? 'detached' : 'not detached'})`, m(x.depth), x.depth <= lim ? 'pass' : 'fail', x.depth === lim ? 'Exactly at the limit.' : x.depth < lim ? `${n1(lim - x.depth)} m to spare.` : `${n1(x.depth - lim)} m over.`);
+      add('A.1(f)', 'Rear depth', `${lim} m (${x.detached ? 'detached' : 'not detached'})`, mOf(x, 'depth'), x.depth <= lim ? 'pass' : 'fail', vsLimit(x.depth, lim));
     }
     // A.1(f) and (j): single-storey height
-    if (loft) add('A.1(f)', 'Height', '4 m single storey', 'a loft', 'n/a', 'Lofts are Class B. The Oracle was asked about Class A.');
-    else if (x.height == null) add('A.1(f)', 'Height', '4 m single storey', 'not given', 'unknown', 'Can\'t tell becomes unknown.');
-    else add('A.1(f)', 'Height', '4 m single storey', m(x.height), x.height <= 4 ? 'pass' : 'fail', x.height === 4 ? 'Exactly at the limit.' : x.height < 4 ? `${n1(4 - x.height)} m to spare.` : `${n1(x.height - 4)} m over.`);
+    const hId = side ? 'A.1(j)' : 'A.1(f)';
+    if (loft) add(hId, 'Height', '4 m single storey', 'a loft', 'n/a', 'Lofts are Class B. The Oracle was asked about Class A.');
+    else if (x.height == null) add(hId, 'Height', '4 m single storey', 'not given', 'unknown', 'Can\'t tell becomes unknown.');
+    else add(hId, 'Height', '4 m single storey', mOf(x, 'height'), x.height <= 4 ? 'pass' : 'fail', vsLimit(x.height, 4));
     // A.1(i): eaves within 2 m of a boundary
     if (loft) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', 'a loft', 'n/a', 'A loft has the eaves it already had.');
     else if (x.boundary == null) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', 'boundary not given', 'unknown', 'Can\'t tell becomes unknown.');
-    else if (x.boundary > 2) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', `${m(x.boundary)} away`, 'pass', 'More than 2 m away, so the limit does not apply.');
+    else if (x.boundary > 2) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', `${mOf(x, 'boundary')} away`, 'pass', 'More than 2 m away, so the limit does not apply.');
     else if (x.eaves == null) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', 'eaves not given', 'unknown', 'Can\'t tell becomes unknown.');
-    else add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', `${m(x.eaves)} at ${m(x.boundary)}`, x.eaves <= 3 ? 'pass' : 'fail', x.eaves <= 3 ? 'Within 2 m, and low enough.' : `${n1(x.eaves - 3)} m too high this close to the boundary.`);
+    else add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', `${mOf(x, 'eaves')} at ${mOf(x, 'boundary')}`, x.eaves <= 3 ? 'pass' : 'fail', x.eaves <= 3 ? 'Within 2 m, and low enough.' : `${gap(x.eaves - 3)} too high this close to the boundary.`);
     // A.2: conservation areas
     if (!x.conservation) add('A.2', 'Conservation area', 'no side extensions', 'not in one', 'pass', 'Not Article 2(3) land.');
     else if (side || x.type === 'Wraparound') add('A.2', 'Conservation area', 'no side extensions', `${x.type.toLowerCase()} in one`, 'fail', 'Side extensions are not permitted development there.');
@@ -14507,10 +14694,10 @@ window.OS = OS; // for tools/shot.mjs and the console
     const terse = e.key === 'low';
     const desc = [
       x.type.toLowerCase(),
-      x.depth != null ? `${m(x.depth)} deep` : 'depth not given',
-      x.height != null ? `${m(x.height)} high` : 'height not given',
-      x.eaves != null ? `eaves ${m(x.eaves)}` : 'eaves not given',
-      x.boundary != null ? `${m(x.boundary)} from the boundary` : 'boundary distance not given',
+      x.depth != null ? `${mOf(x, 'depth')} deep` : 'depth not given',
+      x.height != null ? `${mOf(x, 'height')} high` : 'height not given',
+      x.eaves != null ? `eaves ${mOf(x, 'eaves')}` : 'eaves not given',
+      x.boundary != null ? `${mOf(x, 'boundary')} from the boundary` : 'boundary distance not given',
       x.detached == null ? 'detached or not, not given' : x.detached ? 'detached' : 'not detached',
     ].join(', ');
     say(terse ? `A ${desc}.` : `The question is about a ${desc}. ${x.conservation ? 'In a conservation area.' : 'Not in a conservation area.'} ${x.article4 ? 'An Article 4 direction is in force.' : 'No Article 4 direction.'}`);
@@ -14531,7 +14718,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         switch (r.name) {
           case 'Half the curtilage':
             t = r.result === 'n/a' ? `${r.id}, half the curtilage. ${r.note} ${res}` : r.result === 'unknown' ? `${r.id}, half the curtilage. ${cap(r.yours)}. ${r.note} ${res}`
-              : `${r.id}, half the curtilage. No width is given. The configurator draws every extension ${WIDTH} m wide, as a display convention. I will treat it as a spec. ${n1(x.depth)} × ${WIDTH} is ${r.yours}. Half the garden is ${r.limit}. ${res}`;
+              : `${r.id}, half the curtilage. No width is given. The configurator draws every extension ${WIDTH} m wide, as a display convention. I will treat it as a spec. ${nAt(x.depth, ...NEAR.depth, x.garden / 2 / WIDTH)} × ${WIDTH} is ${r.yours}. Half the garden is ${r.limit}. ${res}`;
             break;
           case 'Rear depth': t = r.result === 'n/a' ? `${r.id}, rear depth. ${r.note} ${res}` : `${r.id}, rear depth. Limit ${r.limit}; this one is ${r.yours}. ${r.note} ${res}`; break;
           case 'Height': t = r.result === 'unknown' || r.result === 'n/a' ? `${r.id}, height. ${cap(r.yours)}. ${r.note} ${res}` : `${r.id}, height. ${r.yours} against ${r.limit}. ${r.note} ${res}`; break;
@@ -14541,8 +14728,8 @@ window.OS = OS; // for tools/shot.mjs and the console
         }
         say(t.replace(/\s+/g, ' ').trim(), settle);
         if (pass === 1 && (e.key === 'high' || e.key === 'xhigh' || e.key === 'max')) {
-          if (r.name === 'Rear depth' && x.depth != null && r.result !== 'n/a') say(`Wait. Is the rear the rear? Left and right are as seen from the street, so the rear is as seen from the garden. Yes. ${m(x.depth)} still.`);
-          if (r.name === 'Height' && r.result === 'pass') say('The larger home extension scheme allows more, with prior approval. Nobody asked for prior approval. Moving on.');
+          if (r.name === 'Rear depth' && x.depth != null && r.result !== 'n/a') say(`Wait. Is the rear the rear? Left and right are as seen from the street, so the rear is as seen from the garden. Yes. ${mOf(x, 'depth')} still.`);
+          if (r.name === 'Rear depth' && r.result === 'pass') say('The larger home extension scheme allows more depth, with prior approval. Nobody asked for prior approval. Moving on.');
         }
         if (pass === 1 && (e.key === 'xhigh' || e.key === 'max')) {
           if (r.name === 'Half the curtilage' && r.result !== 'n/a') say(`Converting to millimetres to be safe: ${x.depth != null ? Math.round(x.depth * 1000).toLocaleString('en-GB') : 'unknown'} mm deep. The result is the same in millimetres.`);
@@ -14568,11 +14755,11 @@ window.OS = OS; // for tools/shot.mjs and the console
     else if (/\b(loft|dormer)\b/.test(s)) x.type = 'Loft';
     else if (/\b(rear|back)\b/.test(s)) x.type = 'Rear extension';
     else { x.type = 'Rear extension'; x.notes.push('type not given: assumed rear'); }
-    if (/semi|terrace/.test(s)) x.detached = false;
+    if (/\b(not|non)[\s-]+detached\b/.test(s) || /semi|terrace/.test(s)) x.detached = false;
     else if (/\bdetached\b/.test(s)) x.detached = true;
     x.conservation = /conservation/.test(s) && !/(not|no|outside)\s+(?:in\s+)?(?:a\s+)?conservation/.test(s);
     x.article4 = /article\s*4/.test(s) && !/(no|not|without)\s+(?:an?\s+)?article\s*4/.test(s);
-    const re = /(\d+(?:\.\d+)?)\s*(mm|cm|m²|m2|sq ?m|m)?\b/g;
+    const re = /(\d+(?:\.\d+)?)\s*(mm|cm|m²|m2|sq ?m|m)?(?![\w²])/g;
     let mt; const loose = [];
     while ((mt = re.exec(s))) {
       let v = Number(mt[1]); const unit = mt[2] || '';
@@ -14590,7 +14777,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     for (const v of loose) {
       const k = ['depth', 'height'].find((key) => x[key] == null);
       if (!k) break;
-      x[k] = v; x.notes.push(`${n1(v)} m read as ${k}`);
+      x[k] = v; x.notes.push(`${mOf(x, k)} read as ${k}`);
     }
     return x;
   }
@@ -14734,7 +14921,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         syncCli();
       }
       function describe() {
-        return `${n1(F.depth)}m ${F.type.toLowerCase()}, ${n1(F.height)}m high, eaves ${n1(F.eaves)}m, ${n1(F.boundary)}m from the boundary, ${F.detached ? 'detached' : 'semi'}${F.conservation ? ', conservation area' : ''}${F.article4 ? ', article 4' : ''}, ${Math.round(F.garden)}m2 garden`;
+        return `${nAt(F.depth, ...NEAR.depth)}m ${F.type.toLowerCase()}, ${nAt(F.height, ...NEAR.height)}m high, eaves ${nAt(F.eaves, ...NEAR.eaves)}m, ${nAt(F.boundary, ...NEAR.boundary)}m from the boundary, ${F.detached ? 'detached' : 'semi'}${F.conservation ? ', conservation area' : ''}${F.article4 ? ', article 4' : ''}, ${n1(F.garden)}m2 garden`;
       }
       function syncCli() {
         cli.innerHTML = `Or from brickty:<br><code>${OS.esc(`oracle "${describe()}"${F.effort !== 'medium' ? ` --effort ${F.effort}` : ''}`)}</code>`;
@@ -14761,8 +14948,8 @@ window.OS = OS; // for tools/shot.mjs and the console
         const paras = think(x, ev, e.key);
         const v = verdict(ev);
         out.innerHTML = '';
-        out.append(h('div', { class: 'or-q' }, `${x.type}, ${m(x.depth)} deep, ${m(x.height)} high. Is it permitted development?`,
-          h('small', null, `eaves ${m(x.eaves)} · ${m(x.boundary)} to the boundary · ${x.detached ? 'detached' : 'semi or terrace'} · garden ${Math.round(x.garden)} m²${x.conservation ? ' · conservation area' : ''}${x.article4 ? ' · Article 4' : ''}`)));
+        out.append(h('div', { class: 'or-q' }, `${x.type}, ${mOf(x, 'depth')} deep, ${mOf(x, 'height')} high. Is it permitted development?`,
+          h('small', null, `eaves ${mOf(x, 'eaves')} · ${mOf(x, 'boundary')} to the boundary · ${x.detached ? 'detached' : 'semi or terrace'} · garden ${n1(x.garden)} m²${x.conservation ? ' · conservation area' : ''}${x.article4 ? ' · Article 4' : ''}`)));
         const label = h('span', { class: 'or-shimmer' }, 'Thinking');
         const cost = h('span', { class: 'cost' }, `${e.key} effort`);
         const body = h('div', { class: 'body' });
@@ -14878,8 +15065,8 @@ window.OS = OS; // for tools/shot.mjs and the console
       const ev = evaluate(x);
       const width = Math.max(40, Math.min(100, (io.cols || 100) - 4));
       io.println(`Planning Oracle 2 · ${e.key} effort · ${OS.usd(e.usd)}`, 'accent');
-      const g = (v, u = 'm') => (v == null ? '?' : `${n1(v)} ${u}`);
-      io.println(`read: ${x.type} · depth ${g(x.depth)} · height ${g(x.height)} · eaves ${g(x.eaves)} · boundary ${g(x.boundary)} · garden ${g(x.garden, 'm²')} · ${x.detached == null ? 'detached ?' : x.detached ? 'detached' : 'not detached'} · conservation ${x.conservation ? 'yes' : 'no'} · Article 4 ${x.article4 ? 'yes' : 'no'}`, 'muted');
+      const g = (k) => (x[k] == null ? '?' : mOf(x, k));
+      io.println(`read: ${x.type} · depth ${g('depth')} · height ${g('height')} · eaves ${g('eaves')} · boundary ${g('boundary')} · garden ${x.garden == null ? '?' : `${n1(x.garden)} m²`} · ${x.detached == null ? 'detached ?' : x.detached ? 'detached' : 'not detached'} · conservation ${x.conservation ? 'yes' : 'no'} · Article 4 ${x.article4 ? 'yes' : 'no'}`, 'muted');
       for (const nt of x.notes) io.println(`note: ${nt}`, 'faint');
       const first = OS.spend.add(e.key === 'max' ? e.usd / 3 : e.usd, `oracle ${e.key}: "${text.slice(0, 40)}"`, 'oracle');
       if (!first.ok) { io.println(first.message, 'bad'); io.println('verdict  No. (reached without thinking)', 'bold'); return 1; }
@@ -15235,13 +15422,14 @@ window.OS = OS; // for tools/shot.mjs and the console
     for (let k = 0; k < n; k++) levels.push({ lvl: k, y0: stTop(k), y1: stTop(k) + SH });
     if (inRoof) levels.push({ lvl: n, y0: ridge - 4, y1: eaves });
 
-    const num = 1 + (OS.hash('addr:' + id) % 63);
+    // Street from id mod the street count, number from id mod 61 (a prime), so no two houses share an address.
+    const num = 1 + (id % 61) + 61 * Math.floor(id / (61 * STREETS.length));
     const photoOf = 8 + (OS.hash('photos:' + id) % 11);
     return {
       id, era, view, form, n, roof, lower, inRoof, storeys, finish, brickHex, wallHex, wallTruth, doorHex, doorTruth, roofHex, frameHex, winStyle,
       pxm, G, x0, x1, fw, SH, base, eaves, ridge, rise, cols, colW, doorCol, nbSide, wins, door, bay, porch, dormers, chimneys, ext, steps, neighbours, nbWins, levels,
       marks: marks.map((m) => ({ ...m, x: Math.round(m.x), y: Math.round(m.y), w: Math.round(m.w), h: Math.round(m.h) })),
-      address: `${num} ${STREETS[OS.hash('street:' + id) % STREETS.length]}`,
+      address: `${num} ${STREETS[id % STREETS.length]}`,
       photoNo: 1, photoOf,
       sky: C(0.55) ? 'overcast' : 'clear', sun: C(0.5) ? -1 : 1,
       truth: { front: view, storeys, finish, wall: wallTruth, door: doorTruth, roof },
@@ -15826,13 +16014,6 @@ window.OS = OS; // for tools/shot.mjs and the console
     return { compared, agreed };
   }
 
-  // ---------- writing ----------
-  function writeGold(path, text) {
-    // /gold is mounted read-only (the boot log says so). The disk does not refuse writes there yet, so the labeller does.
-    if (path === '/gold' || path.startsWith('/gold/')) { const e = new Error(`${path}: Read-only file system`); e.code = 'EPERM'; throw e; }
-    OS.fs.write(path, text);
-  }
-
   // ---------- styles ----------
   function css() {
     if (document.getElementById('gold-css')) return;
@@ -16056,12 +16237,15 @@ window.OS = OS; // for tools/shot.mjs and the console
       const cache = new Map();
       function makeHouseCached(id) { if (!cache.has(id)) cache.set(id, makeHouse(id)); return cache.get(id); }
 
-      // ----- drafts: one per house, so moving between houses loses nothing -----
+      // ----- drafts: one per house. Answers, marks, labeller-2's copy and the resolutions survive a move to another house -----
       const drafts = () => OS.store.get('gold.drafts', {});
       function saveDraft() {
         if (!st.H) return;
         const all = drafts();
-        all[st.H.id] = { qi: st.step === 'q' ? st.qi : Q.length - 1, ans: st.ans, unsure: st.unsure, marks: st.marks, seq: st.seq };
+        all[st.H.id] = {
+          qi: st.step === 'q' ? st.qi : Q.length - 1, ans: st.ans, unsure: st.unsure, marks: st.marks, seq: st.seq,
+          step: st.bot ? st.step : 'q', resKey: st.resKey, dec: st.dec, bot: st.bot && { ...st.bot, shown: st.bot.log.length },
+        };
         OS.store.set('gold.drafts', all);
       }
       function dropDraft(id) { const all = drafts(); delete all[id]; OS.store.set('gold.drafts', all); }
@@ -16074,6 +16258,10 @@ window.OS = OS; // for tools/shot.mjs and the console
         Object.assign(st, { step: 'q', qi: 0, ans: {}, unsure: {}, marks: [], sel: null, seq: 1, undo: [], tool: null, bot: null, botErr: null, botBusy: false, dec: {}, saved: null, reason: '', drag: null });
         const dr = drafts()[id];
         if (dr) Object.assign(st, { qi: OS.clamp(dr.qi | 0, 0, Q.length - 1), ans: dr.ans || {}, unsure: dr.unsure || {}, marks: Array.isArray(dr.marks) ? dr.marks : [], seq: dr.seq || 1 });
+        if (dr?.bot?.house === id) {
+          Object.assign(st, { bot: dr.bot, dec: dr.dec || {} });
+          if (['compare', 'resolve', 'save'].includes(dr.step)) Object.assign(st, { step: dr.step, resKey: dr.resKey ?? null });
+        }
         OS.store.set('gold.current', id);
         renderQueue(); renderAll();
         return true;
@@ -16424,7 +16612,7 @@ window.OS = OS; // for tools/shot.mjs and the console
           if (!r.ok) { st.botErr = r.message; st.bot = null; renderAll(); return; }
           const s = stats(); s.botUsd = Math.round((s.botUsd + b.cost) * 100) / 100; OS.store.set('gold.stats', s);
           const bot = { ...b, house: H.id, shown: 0 };
-          st.bot = bot; st.botBusy = true; renderAll();
+          st.bot = bot; st.botBusy = true; saveDraft(); renderAll();
           for (let i = 0; i < b.log.length; i++) {
             await win.sleep(260);
             if (win.closed || st.bot !== bot) return;
@@ -16434,9 +16622,10 @@ window.OS = OS; // for tools/shot.mjs and the console
           if (win.closed || st.bot !== bot) return;
           st.botBusy = false; renderQueue();
         }
+        saveDraft();
         if (st.step === 'compare') renderAll();
       }
-      function backToMarks() { st.step = 'q'; st.qi = Q.length - 1; renderAll(); }
+      function backToMarks() { st.step = 'q'; st.qi = Q.length - 1; saveDraft(); renderAll(); }
       function compareView(body, foot) {
         if (st.botErr) {
           body.append(h('div', { class: 'gold-qt' }, 'labeller-2 did not answer'), h('div', { class: 'gold-rule' }, st.botErr),
@@ -16476,7 +16665,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         if (st.botBusy || !st.bot) return;
         const p = pending();
         if (p.length) { st.step = 'resolve'; st.resKey = p[0].key; } else st.step = 'save';
-        renderAll();
+        saveDraft(); renderAll();
       }
 
       // ----- resolution -----
@@ -16494,7 +16683,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         body.append(h('div', { class: 'gold-two' }, ans('Copy 1 · you' + (it.ua ? ' · unsure' : ''), it.a, 'c1'), ans('Copy 2 · labeller-2' + (it.ub ? ' · unsure' : ''), it.b, 'c2')));
         if (it.cmp?.detail) body.append(h('div', { class: 'ui-muted' }, it.cmp.detail + (it.cmp.de != null ? (it.cmp.eq ? ': the same colour' : ': different colours') : '')));
         const rule = Q[QI[it.key]].colour ? RULE.colour : RULE[it.key] || '';
-        body.append(h('div', { class: 'gold-rule' }, RULE[it.stat]), rule ? h('div', { class: 'gold-rule' }, rule) : null);
+        body.append(h('div', { class: 'gold-rule' }, RULE[it.stat]), rule ? h('div', { class: 'gold-rule' }, rule) : '');
         const opts = h('div', { class: 'gold-opts' });
         const choices = it.stat === 'flag'
           ? [[1, 'stands', 'Stands', 'the answer as given'], [4, 'drop', 'Drop', 'left out of scoring']]
@@ -16511,7 +16700,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         st.dec[st.resKey] = d;
         const p = pending();
         if (p.length) st.resKey = p[0].key; else { st.step = 'save'; st.resKey = null; }
-        renderAll();
+        saveDraft(); renderAll();
       }
 
       // ----- saving -----
@@ -16550,11 +16739,11 @@ window.OS = OS; // for tools/shot.mjs and the console
         const yml = toYaml(st, st.reason.trim());
         if (where === 'gold') {
           const p = `/gold/houses/${st.H.id}/answers.yml`;
-          try { writeGold(p, yml); } catch (err) {
+          try { OS.fs.write(p, yml); } catch (err) {
             const s = stats(); s.eperm++; OS.store.set('gold.stats', s); renderQueue();
             win.crash({
               title: 'Read-only file system', icon: 'padlock', code: `${err.code || 'EPERM'} · ${p}`,
-              lines: [`open('${p}', O_WRONLY): Operation not permitted.`, 'Gold is never stored. It is derived on every read.', 'Gold is never edited, only overridden.'],
+              lines: [String(err.message), 'Gold is never stored. It is derived on every read.'],
               details: [`$ mount | grep gold`, `gold on /gold type goldfs (ro,nosuid,derived-on-read)`, `$ ls ${OVR_DIR.replace(OS.fs.home, '~')}/`, OS.fs.exists(OVR_DIR) ? OS.fs.ls(OVR_DIR).map((f) => f.name).join('  ') || '(empty)' : 'ls: cannot access: No such file or directory'],
               actions: [{ label: `Write ~/gold-overrides/${st.H.id}.yml`, primary: true, run: () => { doSave('override'); } }, { label: 'Cancel', run: () => renderPanel() }],
             });
@@ -16594,7 +16783,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const ae = document.activeElement;
         if (e.key === 'Enter' && ae?.tagName === 'BUTTON' && win.body.contains(ae) && ae.matches(':focus-visible')) return;
-        const crash = win.body.querySelector('.ui-crash');
+        const crash = win.el.querySelector('.ui-crash');
         if (crash) {
           if (e.key === 'Enter') { e.preventDefault(); crash.querySelector('.ui-btn.primary')?.click(); }
           else if (e.key === 'Escape') { e.preventDefault(); const b = crash.querySelectorAll('.ui-btn'); b[b.length - 1]?.click(); }
@@ -16779,7 +16968,7 @@ window.OS = OS; // for tools/shot.mjs and the console
     };
     add(2701, 'backlog', t('Composer material library: tag sidebar'));
     add(2702, 'backlog', t('Command palette: open a house or run by id'));
-    add(2703, 'backlog', t('Bump vitest'), { labels: ['eng-tweak'] });
+    add(2703, 'backlog', t('Bump the test runner'), { labels: ['eng-tweak'] });
     add(2704, 'backlog', t('icons fill ~82%'), { labels: ['design-tweak'] });
     add(2705, 'frame', t('Admin command palette'));
     add(2706, 'frame', t('Edit home with Undo'));
@@ -17211,8 +17400,8 @@ window.OS = OS; // for tools/shot.mjs and the console
         save(); render(); reveal(id);
       }
       async function runRetro(id) {
-        const c = card(id); const gen = st.gen;
-        const steps = [`reading the exhaust: ${c.hist.length} history lines`, `${c.grill.length} grill answers, ${c.pr ? `PR #${c.pr}` : 'no PR'}`, 'citing every claim', `filing PL-${board.nextPl}`];
+        const c = card(id); const gen = st.gen; const plId = board.nextPl++;
+        const steps = [`reading the exhaust: ${c.hist.length} history lines`, `${c.grill.length} grill answers, ${c.pr ? `PR #${c.pr}` : 'no PR'}`, 'citing every claim', `filing PL-${plId}`];
         st.busy[id] = { step: 0, of: steps.length + 1, text: 'retro starting' };
         renderCard(id);
         for (let i = 0; i < steps.length; i++) {
@@ -17223,8 +17412,7 @@ window.OS = OS; // for tools/shot.mjs and the console
         }
         await win.sleep(480);
         if (win.closed || st.gen !== gen || !board.cards[id]) return;
-        const pl = { id: `PL-${board.nextPl}`, card: id, text: LEARNINGS[(board.nextPl - 1) % LEARNINGS.length], at: OS.now().toISOString() };
-        board.nextPl++;
+        const pl = { id: `PL-${plId}`, card: id, text: LEARNINGS[(plId - 1) % LEARNINGS.length], at: OS.now().toISOString() };
         board.learnings.unshift(pl);
         try {
           const prev = OS.fs.exists(LEARN_FILE) ? OS.fs.read(LEARN_FILE) : '# Process learnings\n\nFiled by the retro. Read by the next retro.\n\n';
@@ -17350,8 +17538,8 @@ window.OS = OS; // for tools/shot.mjs and the console
       st.key = (e) => {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const ae = document.activeElement;
-        if (e.key === 'Enter' && ae?.tagName === 'BUTTON' && win.body.contains(ae) && ae.matches(':focus-visible')) return;
-        const crash = win.body.querySelector('.ui-crash');
+        if (e.key === 'Enter' && ae?.tagName === 'BUTTON' && win.el.contains(ae) && ae.matches(':focus-visible')) return;
+        const crash = win.el.querySelector('.ui-crash');
         if (crash) {
           if (e.key === 'Enter') { e.preventDefault(); crash.querySelector('.ui-btn.primary')?.click(); }
           else if (e.key === 'Escape') { e.preventDefault(); const b = crash.querySelectorAll('.ui-btn'); b[b.length - 1]?.click(); }
@@ -17422,7 +17610,7 @@ window.OS = OS; // for tools/shot.mjs and the console
       if (!OS.apps[id]) continue;
       OS.open(id, id === 'terminal' && !p.get('apps') ? { run: 'brickfetch' } : undefined);
     }
-    if (!p.get('apps') && window.innerWidth >= 1200) OS.wm.resize(-0.08); // give the Composer the larger tile
+    if (!p.get('apps') && window.innerWidth >= 1200) OS.wm.setRatio(0.42, 1); // give the Composer the larger tile
     OS.wm.updateEmpty();
     if (p.get('bricky') !== '0') {
       setTimeout(() => OS.notify({

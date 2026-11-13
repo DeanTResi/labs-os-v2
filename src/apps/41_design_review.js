@@ -67,7 +67,7 @@
       C('product', 'Move the price bar up again, so it clears the feedback prompt.', { kind: 'priceBarOffset', delta: -4 }),
       C('ui', 'Two columns of tiles reads calmer.', { kind: 'tileCols', value: 2 }),
       C('arch', 'A gabled side roof needs a valley gutter nobody has drawn. Remove the Gabled roof option from the side extension.', { kind: 'option', ext: 'side', option: 'gabled', on: false }, 'Reverses round 7'),
-      C('arch', 'Steeper again. The first-floor windows can cope.', { kind: 'roofPitch', delta: 5 }),
+      C('arch', 'Five degrees steeper. It now sheds rain in two drawings.', { kind: 'roofPitch', delta: 5 }),
     ],
     9: [
       C('product', 'Three columns showed more options above the fold.', { kind: 'tileCols', value: 3 }, 'Reverses round 8'),
@@ -219,17 +219,16 @@
 .$mtile svg{width:auto;transition:height .4s}
 .$mtile.$sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);color:var(--fg)}
 .$mfill .$mtile.$sel{background:var(--accent);color:var(--on-accent);box-shadow:none}
-.$mtile.$rm{border-style:dashed;background:transparent;opacity:.6}
 .$mrow{display:grid;grid-template-columns:repeat(3,1fr);transition:gap .4s}
 .$msw{display:flex;gap:7px}
 .$msw i{display:block;width:26px;height:26px;transition:border-radius .4s}
 .$mrow .$mtile{height:22px}
 .$mprice{flex:none;display:flex;align-items:center;gap:6px;padding:8px 10px 9px;border-top:1px solid var(--border);background:var(--surface);box-shadow:0 -8px 16px -10px rgba(0,0,0,.35);transition:margin .4s,border-radius .4s}
-.$mprice.$float{margin-left:8px;margin-right:8px;border:1px solid var(--border)}
+.$mprice.$float{margin-left:4px;margin-right:4px;padding-left:8px;padding-right:8px;border:1px solid var(--border)}
 .$mprice .$ml{flex:1;min-width:0;overflow:hidden}
 .$mprice b{display:block;font-weight:760;letter-spacing:-.02em;font-variant-numeric:tabular-nums;white-space:nowrap;transition:font-size .3s}
 .$mprice u{font-size:8px;color:var(--fg);text-underline-offset:2px}
-.$mprice em{font-style:normal;font-size:7.5px;color:var(--muted);margin-left:5px}
+.$mprice em{font-style:normal;font-size:7.5px;color:var(--muted);margin-left:5px;white-space:nowrap}
 .$msave{flex:none;height:24px;padding:0 9px;display:flex;align-items:center;gap:4px;font-size:8.5px;font-weight:650;background:color-mix(in srgb,var(--accent) 17%,var(--surface));white-space:nowrap;transition:border-radius .4s}
 .$msave svg{width:9px;height:9px;color:var(--accent)}
 `;
@@ -273,13 +272,12 @@
     const types = ['Existing', 'Rear', 'Side', 'Infill', 'Loft', 'Wrap'];
     const tiles = h('div', { class: K('mtiles'), dataset: { anchor: 'tiles' }, style: { gridTemplateColumns: `repeat(${s.tileCols},1fr)`, gap: `${s.gap * 0.6}px` } },
       ...types.map((t, i) => h('div', { class: K('mtile' + (i === 1 ? ' sel' : '')), dataset: { anchor: i === 1 ? 'sel' : i === 0 ? 'icon' : '' }, style: { borderRadius: r + 'px' }, html: GLYPH(s.iconScale) + `<span>${t}</span>` })));
-    const removed = !!s.removed['side:gabled'];
-    const roofRow = h('div', { class: K('mrow'), dataset: { anchor: 'roofRow' }, style: { gap: `${s.gap * 0.6}px` } },
-      ...['Flat', 'Pitched', 'Gabled'].map((t, i) => h('div', { class: K('mtile' + (i === 0 ? ' sel' : '') + (i === 2 && removed ? ' rm' : '')), style: { borderRadius: r + 'px' } }, i === 2 && removed ? 'Removed' : t)));
+    const roofRow = h('div', { class: K('mrow'), style: { gap: `${s.gap * 0.6}px` } },
+      ...['Flat', 'Pitched'].map((t, i) => h('div', { class: K('mtile' + (i === 1 ? ' sel' : '')), style: { borderRadius: r + 'px' } }, t)));
     const vatInBar = s.vatTick !== 'heading';
     const bar = h('div', { class: K('mprice' + (s.priceBarOffset < 0 ? ' float' : '')), dataset: { anchor: 'bar' }, style: { marginBottom: `${-s.priceBarOffset}px`, borderRadius: s.priceBarOffset < 0 ? r + 'px' : '0' } },
       h('div', { class: K('ml') },
-        h('b', { dataset: { anchor: 'price' }, style: { fontSize: `${s.priceSize * 0.56}px` } }, '£65,000 – £97,000'),
+        h('b', { dataset: { anchor: 'price' }, style: { fontSize: `${s.priceSize * 0.56}px` } }, '£65,000 – £97,500'),
         h('u', { dataset: { anchor: 'link' } }, s.text.breakdown),
         h('em', { dataset: { anchor: 'vat' } }, vatInBar ? '☐ incl. VAT' : 'excl. VAT')),
       h('div', { class: K('msave'), dataset: { anchor: 'save' }, style: { borderRadius: r + 'px' }, html: HEART + `<span>${OS.esc(s.text.save)}</span>` }));
@@ -293,7 +291,7 @@
             h('div', { class: K('mhome'), style: { borderRadius: r + 'px' } }, h('i'), h('span', null, '12 Purlin Road, Eavesham')),
             heading('Extension type', 'heading'), tiles,
             heading('Size'), h('div', { class: K('mrow'), style: { gap: `${s.gap * 0.6}px` } }, ...['Small', 'Medium', 'Large'].map((t, i) => h('div', { class: K('mtile' + (i === 1 ? ' sel' : '')), style: { borderRadius: r + 'px' } }, t))),
-            heading('Roof'), roofRow,
+            heading('Roof', 'roofRow'), roofRow,
             heading('Wall material'), h('div', { class: K('msw') }, ...['#a85b42', '#d2b27c', '#efebe2', '#808b95', '#ab7c50'].map((c, i) => h('i', { style: { background: c, borderRadius: r * 0.6 + 'px', boxShadow: i === 0 ? '0 0 0 2px var(--surface), 0 0 0 3px var(--accent)' : 'inset 0 0 0 1px rgba(0,0,0,.15)' } }))),
             ),
           bar)));
@@ -442,7 +440,7 @@
           title: 'Approval is not a state this board has',
           icon: 'paint-brush',
           code: 'DR-0x000A NO_FINAL_ROUND',
-          lines: [`The configurator has been through ${n - 1 === 1 ? 'one round' : `${n - 1} rounds`} this cycle. Approving it would end the cycle.`, `Round ${n} is on the agenda. Round ${n === 10 ? 1 : n + 1} is already booked.`],
+          lines: [`The configurator has been through ${n - 1 === 0 ? 'no rounds' : n - 1 === 1 ? 'one round' : `${n - 1} rounds`} this cycle. Approving it would end the cycle.`, `Round ${n} is on the agenda. Round ${n === 10 ? 1 : n + 1} is already booked.`],
           details: ['design_review.approve!', '  raise NoFinalRound, "every UI gets one more design review"', `  round: ${n}, roles: 3, meanings of design: 3`],
           actions: [{ label: `Hold round ${n}`, primary: true }, { label: 'Close app', run: () => win.close() }],
         });

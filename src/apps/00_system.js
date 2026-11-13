@@ -31,9 +31,10 @@
         );
       };
       render();
-      win.state.off = OS.on('theme', render);
+      win.state.offs = [OS.on('theme', render), OS.on('wallpaper', render)];
+      win.on('focus', render);
     },
-    unmount(win) { win.state.off?.(); },
+    unmount(win) { win.state.offs?.forEach((off) => off()); },
   });
 
   registerApp({
@@ -43,7 +44,7 @@
       const rows = [
         ['Version', `Labs OS ${OS.version} (${OS.codename})`], ['Build', OS.build], ['Compositor', 'brickland (dwindle, master, monocle)'],
         ['Shell', 'brickty, with real commands and a fake disk'], ['Pipeline', `${OS.data.stages.length} stages, page codes P1 to M4`],
-        ['Spend cap', `${OS.usd(OS.data.dailyCapUsd)} a day (UTC)`], ['Mascot', 'Bricky, 32x32, unupgraded by choice'],
+        ['Spend cap', `${OS.usd(OS.data.dailyCapUsd)} a day (UTC)`], ['Mascot', 'Bricky. Offered vectors. Declined.'],
         ['Previous version', '3.1 (Evaluation). 2.0 follows 3.1. Version numbers are display numbers.'],
       ];
       win.body.append(h('div', { class: 'ui-pad col', style: { gap: '12px' } },
@@ -82,7 +83,7 @@
         'brine 9.0: Labs OS 3.1 in compatibility mode. Keys typed inside belong to 1996. Use the ✕ above, or click outside first, to get Alt back.');
       win.body.style.display = 'flex'; win.body.style.flexDirection = 'column';
       win.body.append(note, h('div', { class: 'grow' }, frame));
-      win.setMeta('wine is a different thing');
+      win.setMeta('not to be confused with anything else');
     },
   });
 })();

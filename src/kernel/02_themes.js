@@ -39,7 +39,7 @@
     }),
     T('heightmap', 'Heightmap', true, 'heightmap', {
       bg: '#000000', bar: 'rgba(0,0,0,.85)', surface: '#0b0b0b', surface2: '#151515', fg: '#f0f0f0', muted: '#9a9a9a', faint: '#555555',
-      border: '#2a2a2a', accent: '#ffffff', accent2: '#8a8a8a', good: '#d6d6d6', bad: '#ffffff', warn: '#bbbbbb', info: '#e0e0e0', sel: '#333333', onAccent: '#000000',
+      border: '#2a2a2a', accent: '#ffffff', accent2: '#8a8a8a', good: '#d6d6d6', bad: '#8a8a8a', warn: '#bbbbbb', info: '#e0e0e0', sel: '#333333', onAccent: '#000000',
       blurb: 'Black is low. White is high. Good and bad are both grey.',
     }),
     T('matte-mortar', 'Matte Mortar', true, 'bricky', {

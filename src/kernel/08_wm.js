@@ -40,7 +40,7 @@
     const el = h('div', { class: 'win opening', dataset: { app: app.id, id: String(id) }, role: 'dialog', 'aria-label': app.title }, header, body);
     const win = {
       id, app, el, body, header, ws: cur, floating: false, rect: null, state: {}, closed: false, title: app.title,
-      _timers: [], _h: {},
+      _timers: new Set(), _h: {},
       setTitle(t) { this.title = t; title.textContent = t; el.setAttribute('aria-label', t); OS.emit('win:title', this); },
       setMeta(t) { meta.textContent = t || ''; },
       close() { close(this); },
@@ -49,10 +49,20 @@
       get visible() { return !this.closed && this.ws === cur && !el.classList.contains('hidden'); },
       get width() { return body.clientWidth; },
       get height() { return body.clientHeight; },
-      every(ms, fn) { const t = setInterval(() => { if (!this.closed) fn(); }, ms / OS.speed); this._timers.push(() => clearInterval(t)); return t; },
-      after(ms, fn) { const t = setTimeout(() => { if (!this.closed) fn(); }, ms / OS.speed); this._timers.push(() => clearTimeout(t)); return t; },
+      every(ms, fn) { const t = setInterval(() => { if (!this.closed) fn(); }, ms / OS.speed); this._timers.add(() => clearInterval(t)); return t; },
+      after(ms, fn) {
+        const cancel = () => clearTimeout(t);
+        const t = setTimeout(() => { this._timers.delete(cancel); if (!this.closed) fn(); }, ms / OS.speed);
+        this._timers.add(cancel); return t;
+      },
       // Resolves after ms, or straight away when the window closes. Check win.closed after every await.
-      sleep(ms) { return new Promise((r) => { const t = setTimeout(r, ms / OS.speed); this._timers.push(() => { clearTimeout(t); r(); }); }); },
+      sleep(ms) {
+        return new Promise((r) => {
+          const cancel = () => { clearTimeout(t); r(); };
+          const t = setTimeout(() => { this._timers.delete(cancel); r(); }, ms / OS.speed);
+          this._timers.add(cancel);
+        });
+      },
       raf(fn) { const r = { win: this, fn }; rafs.add(r); return () => rafs.delete(r); },
       on(evt, fn) { (this._h[evt] ||= []).push(fn); return () => { this._h[evt] = this._h[evt].filter((f) => f !== fn); }; },
       emit(evt, data) { for (const fn of this._h[evt] || []) { try { fn(data); } catch (err) { console.error(`[OS] '${evt}' handler in '${app.id}' threw`, err); } } },
@@ -75,7 +85,7 @@
       requestAnimationFrame(() => { pend = false; if (!win.closed) { win.emit('resize'); try { app.onResize?.(win); } catch (err) { console.error(err); } } });
     });
     ro.observe(body);
-    win._timers.push(() => ro.disconnect());
+    win._timers.add(() => ro.disconnect());
     return win;
   }
 
@@ -148,6 +158,11 @@
     win.el.classList.add('focused');
     win.urgent = false;
     const w = W(win.ws);
+    if (w.full && w.full !== win.id && !win.floating) {
+      const fw = wins.get(w.full); w.full = null;
+      if (fw) fw.el.style.zIndex = '';
+      layout(win.ws);
+    }
     w.history = [...w.history.filter((id) => id !== win.id), win.id];
     if (win.floating) win.el.style.zIndex = String(++zTop);
     if (w.layout === 'monocle' || narrow()) layout(win.ws);
@@ -277,6 +292,7 @@
     OS.emit('ws', cur);
   }
   function resize(delta) { const w = W(cur); w.ratio = OS.clamp(w.ratio + delta, 0.2, 0.8); layout(cur); }
+  function setRatio(r, n = cur) { W(n).ratio = OS.clamp(r, 0.2, 0.8); layout(n); }
 
   function neighbour(dir) {
     if (!focused) return null;
@@ -363,7 +379,7 @@
   window.addEventListener('resize', () => { for (let n = 1; n <= 9; n++) layout(n); });
 
   OS.wm = {
-    cfg, open, close, focus, layout, switchWs, moveToWs, toggleFloat, toggleFull, cycleLayout, resize, focusDir, swapDir, updateEmpty,
+    cfg, open, close, focus, layout, switchWs, moveToWs, toggleFloat, toggleFull, cycleLayout, resize, setRatio, focusDir, swapDir, updateEmpty,
     list: () => [...wins.values()],
     focused: () => focused,
     current: () => cur,

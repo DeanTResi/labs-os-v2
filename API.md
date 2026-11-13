@@ -64,7 +64,8 @@ OS.notify({ title, body, app, icon, urgency: 'low'|'normal'|'critical', timeout,
                                // returns the note; note.dismiss() removes it (critical notes never time out)
 OS.osd('short centred text')   // brief overlay, for mode changes
 OS.crash(win, { title, code, lines: [], details: [], icon, actions: [{label, run, primary}] })
-                               // the fail-on-purpose panel, inside your window. Default buttons: OK, Close app.
+                               // the fail-on-purpose panel. It covers the whole window below the title bar, even when
+                               // win.body is scrolled. Default buttons: OK, Close app.
 OS.brickySay('text')           // Bricky notification
 OS.on(evt, fn) / OS.emit(evt, data) / OS.off(evt, fn)
                                // kernel events: 'theme', 'wallpaper', 'spend', 'spend:cap', 'notify', 'ws',

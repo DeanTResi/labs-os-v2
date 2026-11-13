@@ -13,7 +13,7 @@
   const TICK = 600;
   const MAX_NODES = 1400;
   const FINDINGS = ['a comment restates the code', 'one more test, please', 'a magic number', 'rename one variable back', 'the spec description has a typo', 'the design system check is out of date', '"load-bearing" in a comment', 'a merge commit; Labs merges by rebase', 'an unused import from the last fix'];
-  const SUBTASKS = ['the change itself', 'the tests for it', 'the Lookbook preview', 'the analytics event', 'a feature flag', 'a note in agent_docs/', 'the Storybook story', 'the follow-ups from review'];
+  const SUBTASKS = ['the change itself', 'the tests for it', 'the Lookbook preview', 'the analytics event', 'a feature flag', 'a note in agent_docs/', 'the design-system card', 'the follow-ups from review'];
   const KINDS = { spec: 'spec', craft: 'craft', production: 'prod', gristle: 'gristle', design: 'design', tone: 'tone', bench: 'bench' };
 
   const CSS = `
@@ -92,6 +92,7 @@
 `;
 
   const fmt = (n) => Math.round(n).toLocaleString('en-GB');
+  const many = (n, one, more = one + 's') => `${fmt(n)} ${n === 1 ? one : more}`;
   const mmss = (ticks) => { const s = Math.floor(ticks * TICK / 1000); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
 
   registerApp({
@@ -204,7 +205,7 @@
       function start() {
         if (run && (run.phase === 'running' || run.phase === 'stopping')) return;
         win.body.querySelector('.uc-report')?.remove();
-        win.body.querySelectorAll('.ui-crash').forEach((n) => n.remove());
+        win.el.querySelectorAll('.ui-crash').forEach((n) => n.remove());
         const size = SIZES.find((s) => s.key === sizeSel.value) || SIZES[1];
         const prompt = input.value.trim() || 'Something, quickly';
         input.value = prompt;
@@ -212,7 +213,7 @@
         run = {
           phase: 'running', t: 0, size, prompt, short: prompt.length > 44 ? prompt.slice(0, 43) + '…' : prompt,
           nodes: [], seq: {}, count: 0, implN: 0, hidden: 0, hiddenActive: 0, prs: [], metaReviews: [],
-          opened: 0, approvedN: 0, archived: 0, add: 0, del: 0, spend: 0, logged: 0, layoutDirty: true, exceeded: 0, rot: 0, spendHist: [], maxDepth: 1,
+          opened: 0, approvedN: 0, archived: 0, add: 0, del: 0, craft: 0, spend: 0, logged: 0, layoutDirty: true, exceeded: 0, rot: 0, spendHist: [], maxDepth: 1,
         };
         st.run = run;
         const o = spawn(null, 'orchestrator');
@@ -272,6 +273,7 @@
         const add = 40 + Math.floor(R() * 360); const del = Math.floor(R() * add * 0.7);
         const pr = { n: run.prs.length + 1, ...prTitle(), by: impl.name, reviews: [], approvals: 0, changes: 0, approved: false };
         run.prs.push(pr); run.opened++; run.add += add; run.del += del;
+        if (pr.short === 'craft cleanup') run.craft += add + del;
         impl.pr = pr; impl.state = 'waiting'; impl.busy = 99;
         log(`${nm(impl)} opened <b>PR #${pr.n}</b> “${OS.esc(pr.title)}” <span class="good">+${add}</span> <span class="bad">−${del}</span>.`);
         const kinds = ['spec', 'craft', 'production'];
@@ -315,7 +317,7 @@
             if (a.fixing) {
               a.fixing = false;
               const add = 4 + Math.floor(R() * 90); const del = 4 + Math.floor(R() * 90);
-              run.add += add; run.del += del;
+              run.add += add; run.del += del; run.craft += add + del;
               const kind = a.fixKind || 'craft';
               log(`${nm(a)} pushed “craft cleanup” to PR #${a.pr.n} <span class="good">+${add}</span> <span class="bad">−${del}</span>.`);
               const rr = spawn(a, 'reviewer', kind, { pr: a.pr, impl: a }); if (rr) rr.busy = 2 + Math.floor(R() * 3);
@@ -451,7 +453,7 @@
         S.agents.b.textContent = fmt(run.count);
         S.agents.s.textContent = `${fmt(n)} active`;
         S.opened.b.textContent = fmt(run.opened);
-        S.opened.s.textContent = run.opened ? `${run.prs.reduce((x, p) => x + p.reviews.length, 0)} reviews` : ' ';
+        S.opened.s.textContent = run.opened ? many(run.prs.reduce((x, p) => x + p.reviews.length, 0), 'review') : ' ';
         S.approved.b.textContent = fmt(run.approvedN);
         S.approved.s.textContent = run.approvedN ? '0 merged' : ' ';
         S.lines.b.textContent = fmt(run.add + run.del);
@@ -482,16 +484,18 @@
         lines.push(['dim', `Workflow size: ${guideline(r.size)}. Agents used: ${fmt(r.count)}. Ended by: ${endedBy}.`], ['', '']);
         lines.push(['h3', '### Shipped'], ['', '- Nothing. 0 features.'], ['', '']);
         lines.push(['h3', '### Reviewed']);
-        if (!r.prs.length) lines.push(['', '- No PRs were opened, so the reviewers reviewed each other.']);
+        if (!r.prs.length) lines.push(['', r.nodes.some((a) => a.role === 'architect' && a.reviewed) ? '- No PRs were opened. The architect\'s arrow is still under review.' : '- No PRs were opened.']);
         for (const pr of r.prs.slice(0, 10)) {
           const ap = pr.reviews.filter((x) => x.verdict === 'approved').length;
-          lines.push(['', `- PR #${pr.n} "${pr.short}": ${pr.reviews.length} reviews, ${ap} approving. ${pr.approved ? 'Approved. Not merged.' : 'Open.'}`]);
+          lines.push(['', `- PR #${pr.n} "${pr.short}": ${many(pr.reviews.length, 'review')}, ${ap} approving. ${pr.approved ? 'Approved. Not merged.' : 'Open.'}`]);
         }
-        if (r.prs.length > 10) lines.push(['', `- ${r.prs.length - 10} more PRs, reviewed in the same way.`]);
-        for (const m of r.metaReviews.slice(0, 10)) lines.push(['', `- The review by ${m.of}${m.pr ? ` of PR #${m.pr}` : ''}, reviewed by ${m.by}`]);
-        if (r.metaReviews.length > 10) lines.push(['', `- ${fmt(r.metaReviews.length - 10)} more reviews of reviews.`]);
+        if (r.prs.length > 10) lines.push(['', `- ${many(r.prs.length - 10, 'more PR')}, reviewed in the same way.`]);
+        for (const m of r.metaReviews.slice(0, 10)) lines.push(['', `- The ${m.of === 'architect' ? 'arrow drawn' : 'review'} by ${m.of}${m.pr ? ` of PR #${m.pr}` : ''}, reviewed by ${m.by}`]);
+        if (r.metaReviews.length > 10) lines.push(['', `- ${many(r.metaReviews.length - 10, 'more review')} of reviews.`]);
         lines.push(['', ''], ['h3', '### Changed']);
-        lines.push(['', `- ${fmt(r.add + r.del)} lines (+${fmt(r.add)} / -${fmt(r.del)}). Most of them craft cleanup.`], ['', '']);
+        const total = r.add + r.del;
+        const craft = r.craft * 2 > total ? 'Most of them craft cleanup.' : r.craft ? 'Some of them craft cleanup.' : 'None of them craft cleanup yet.';
+        lines.push(['', total ? `- ${fmt(total)} lines (+${fmt(r.add)} / -${fmt(r.del)}). ${craft}` : '- 0 lines. The craft cleanup is booked for the next run.'], ['', '']);
         lines.push(['h3', '### Spend']);
         lines.push(['', `- ${OS.usd(r.spend)} for this run. Cost per feature: cannot divide by zero features.`], ['', '']);
         lines.push(['dim', 'Not worse than main.']);

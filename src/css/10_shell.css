@@ -144,7 +144,8 @@
 /* Screensaver (kiln) + boot + shutdown */
 .kiln, .boot, .halt { background: #000; color: #d6d6d6; cursor: none; }
 .kiln canvas { width: 100%; height: 100%; display: block; }
-.boot { cursor: default; padding: 14px 18px; font-size: 12px; line-height: 1.5; overflow: hidden; white-space: pre; }
+.boot { cursor: default; padding: 14px 18px; font-size: 12px; line-height: 1.5; overflow: hidden; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .boot { font-size: 10.5px; padding: 10px; } }
 .boot .ok { color: #5fd38d; } .boot .fail { color: #ff5f6d; } .boot .wait { color: #ffcc66; } .boot .dim { color: #777; } .boot .hi { color: #b9acff; font-weight: 700; }
 .boot .skip { position: absolute; right: 16px; bottom: 12px; color: #555; }
 .halt { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; cursor: default; text-align: center; }

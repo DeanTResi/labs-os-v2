@@ -79,8 +79,8 @@
     floor_diff: { default: 'What each storey has that the storey below does not.' },
     detect_features: { default: 'Windows and doors on the front photo. A different model in place of the old one.' },
     mark_features: {
-      default: 'Places features where they were boxed. They were boxed 0.3 m in front of the wall.',
-      front_snap_1: 'Snaps front windows boxed off the wall onto it. Doors stay where they were boxed.',
+      default: 'Places features where they were boxed: windows 0.3 m in front of the wall. A recessed door\'s recess is measured the wrong way, so the door stands 0.3 m off the front faces.',
+      front_snap_1: 'Snaps front windows boxed off the wall onto it. A recessed door still stands 0.3 m off the front faces: its recess, measured the wrong way.',
       front_snap_2: 'Also moves a recessed front door onto the front faces in line with it.',
       front_snap_3: 'front_snap_2, and the side windows too.',
     },
@@ -155,7 +155,7 @@
     let door = bay ? (bay.side === 'left' ? 'right' : 'left') : (r() < 0.5 ? 'left' : 'right');
     const partySide = r() < 0.5 ? 'left' : 'right';
     const chR = r(); const chSide = r() < 0.5 ? 'left' : 'right';
-    let chimney = chR < 0.78 ? (type === 'detached' ? chSide : (type === 'end-terrace' ? 'party' : 'party')) : null;
+    let chimney = chR < 0.78 ? (type === 'detached' ? chSide : 'party') : null;
     const fr = r();
     let finish = fr < 0.55 ? 'brick' : fr < 0.8 ? 'render' : fr < 0.9 ? 'pebbledash' : 'stone';
     let wallI = Math.floor(r() * LIB[finish].length); let roofI = Math.floor(r() * ROOF_LIB.length); let doorI = Math.floor(r() * DOOR_HEX.length);
@@ -339,7 +339,7 @@
     put('plan_sheet', {
       ok: scale === 1,
       sum: T.tileOOR ? (scale !== 1 ? `largest drawing: floor 0 · tile scaled ×${f1(T.factor)}` : `largest drawing: floor 0 · factor ×${f1(T.factor)} out of range: tile left unscaled`) : 'largest drawing: floor 0 · tile scaled ×1.0',
-      defect: scale !== 1 ? `P14: an out-of-range plan tile was applied: ${f1(T.factor)}× gold size` : null, mark: `P14 unscaled tile: ${f1(T.factor)}× gold size`,
+      defect: scale !== 1 ? `P14: an out-of-range plan tile was applied: ${f1(T.factor)}× gold size` : null, mark: `P14 out-of-range factor applied: ${f1(T.factor)}× gold size`,
     });
     put('align_floors', {
       ok: !dropped,
@@ -360,9 +360,9 @@
     put('mark_features', {
       ok: !winFloat && !doorFloat,
       sum: A.mark_features === 'default' ? `${nFront + 1} features marked where they were boxed`
-        : A.mark_features === 'front_snap_1' ? `${nFront + 1} marked · ${plural(M.front.wins.length, 'window')} snapped onto the wall`
+        : A.mark_features === 'front_snap_1' ? `${nFront + 1} marked · ${plural(M.front.wins.length, 'window')} snapped onto the wall${doorFloat ? ' · door left 0.3 m off the front faces' : ''}`
           : `${nFront + 1} marked · windows and door on the front faces`,
-      defect: winFloat ? 'P10: front windows 0.3 m in front of the wall' : doorFloat ? 'P10: front door 0.3 m in front of the wall' : null, mark: winFloat ? 'P10 windows 0.3 m off the wall' : 'P10 door 0.3 m off the wall',
+      defect: winFloat ? 'P10: front windows 0.3 m in front of the wall' : doorFloat ? 'P10: front door left 0.3 m off the front faces (its recess, measured the wrong way)' : null, mark: winFloat ? 'P10 windows 0.3 m off the wall' : 'P10 door 0.3 m off the front faces: recess measured the wrong way',
     });
     {
       const projList = [T.bay && 'bay', T.porch && porchKnown && 'porch'].filter(Boolean);
@@ -888,7 +888,7 @@
     return P;
   }
 
-  // ---------- transforms: mirrored plans and rear-as-front move the features; an unscaled tile scales everything ----------
+  // ---------- transforms: mirrored plans and rear-as-front move the features; an applied out-of-range factor scales everything ----------
   function featTx(M) {
     const { xc, zc } = M; const X = M.X;
     if (!X.mirror && !X.flip) return null;
@@ -991,7 +991,7 @@
       else res.push(...bx(a, b, 0, 0.55, site.zPF - 0.24, site.zPF, wallHex, { kind: 'fwall', skip: ['bottom'] }));
     }
     const F0 = { kind: 'fence', skip: ['bottom'] };
-    res.push(...bx(site.px0 - 0.03, site.px0 + 0.03, 0, 1.6, site.zRear, zb - (T.rear && T.partyL ? 0 : 0), C.fence, F0));
+    res.push(...bx(site.px0 - 0.03, site.px0 + 0.03, 0, 1.6, site.zRear, zb, C.fence, F0));
     res.push(...bx(site.px1 - 0.03, site.px1 + 0.03, 0, 1.6, site.zRear, zb, C.fence, F0));
     res.push(...bx(site.px0, site.px1, 0, 1.6, site.zRear - 0.03, site.zRear + 0.03, C.fence, F0));
     return res;
@@ -1168,7 +1168,7 @@
     a.plan_sheet = P([M.xc, M.ridgeY, M.zc]);
     a.align_floors = P([M.x1, M.eaves, M.zf]);
     a.floor_cells = P([M.x1 + X.shift, SH * 1.5, M.zf]);
-    const w = M.front.wins[0];
+    const w = X.winFloat ? M.front.wins[0] : null;
     a.mark_features = w ? P([M.x0 + w.a + w.w / 2, w.y + w.hh, M.zf + 0.3], true) : P([doorX, 2.2, M.zf + 0.3], true);
     a.massing = P([doorX, 2.0, M.zf + 0.1], true);
     a.roofer = P([M.x1 - 0.5, M.ridgeY, M.zc]);
@@ -1216,6 +1216,8 @@
     const headline = regress.length ? `✗ worse than main (${plural(regress.length, 'regression')})` : '✓ not worse than main';
     return { rows, regress, improve, pass, fail, none, headline, ok: !regress.length, score: run.score, mainScore: main.score, isolated: keys.length < KEYS.length };
   }
+  // An isolated run stops before M4, so it has no composed-model score to record.
+  const scoreFields = (b) => (b.isolated ? { score: null } : { score: b.score, mainScore: b.mainScore });
 
   // ---------- the note: one hypothesis, a $10.00 cap, a write-up at the end ----------
   const HYP = [
@@ -1251,14 +1253,17 @@
       const v = this.get();
       if (!v.runs.length) return { ok: false, message: `H-${v.n} has no runs to write up. Run something first. It costs money.` };
       const regress = v.runs.filter((r) => r.regress > 0);
-      const better = v.runs.filter((r) => r.improve > 0 && r.score > r.mainScore + 0.05 && !r.regress);
+      const scored = v.runs.filter((r) => typeof r.score === 'number' && typeof r.mainScore === 'number');
+      const better = scored.filter((r) => r.improve > 0 && r.score > r.mainScore + 0.05 && !r.regress);
       const finding = regress.length ? 'negative' : better.length ? 'positive' : 'inconclusive';
-      const last = v.runs[v.runs.length - 1];
+      const last = scored[scored.length - 1];
       const text = finding === 'negative'
         ? `Worse than main on ${plural(regress.length, 'run')}. Main stays as it is.`
         : finding === 'positive'
           ? `Not worse than main, and the composed model scored ${f1(better[0].score)}/10 against main's ${f1(better[0].mainScore)}/10. A tenth of a point. Repeat it on a larger dev set before believing it.`
-          : `Not worse than main. The composed model scored ${f1(last.score)}/10, as main does. So the kit and the question list limit the result, not the reading.`;
+          : last
+            ? `Not worse than main. The composed model scored ${f1(last.score)}/10, as main does. So the kit and the question list limit the result, not the reading.`
+            : 'Not worse than main on the stages that ran. Every run was isolated, so M4 never composed a model and nothing was scored against the photos.';
       const next = { n: v.n + 1, spent: 0, hyp: hypOf(v.n + 1), runs: [] };
       const follow = [`H-${v.n + 1}: ${hypOf(v.n + 1)}`, `H-${v.n + 2}: ${hypOf(v.n + 2)} (queued)`];
       const md = [
@@ -1283,6 +1288,7 @@
   // ---------- the runner, shared by the window and the terminal ----------
   async function execute(comp, keys, io) {
     let usd = 0; const ran = [];
+    const est = r2(keys.reduce((s, k) => s + comp.out[k].usd, 0));
     for (const k of keys) {
       const o = comp.out[k];
       const ms = Math.max(140, o.secs * 260);
@@ -1297,7 +1303,7 @@
       }
       if (o.usd > 0) {
         const v = Note.get();
-        if (v.spent + o.usd > CAP + 1e-9) return { refused: true, kind: 'note', message: Note.capSentence(v, o.usd), at: k, ran, usd };
+        if (v.spent + o.usd > CAP + 1e-9) return { refused: true, kind: 'note', message: Note.capSentence(v, est), at: k, ran, usd };
         const r = OS.spend.add(o.usd, `${k} ${apText(comp.A[k])}, house ${comp.T.label}`, 'composer');
         if (!r.ok) return { refused: true, kind: 'day', message: r.message, at: k, ran, usd };
         Note.charge(o.usd); usd = r2(usd + o.usd);
@@ -1323,6 +1329,11 @@
   for (const s of STAGES) BYCOL[COL[s.key]].push(s.key);
   const NROW = Math.max(...BYCOL.map((c) => c.length));
   const EDGES = STAGES.flatMap((s) => s.needs.map((n) => [n, s.key]));
+  function dependants(key) {
+    const out = new Set(); const todo = [key];
+    while (todo.length) { const u = todo.pop(); for (const [a, b] of EDGES) if (a === u && !out.has(b)) { out.add(b); todo.push(b); } }
+    return out;
+  }
   const ROW = (() => {
     const row = {};
     BYCOL.forEach((keys) => keys.forEach((k, i) => { row[k] = i; }));
@@ -1462,7 +1473,7 @@
 .composer-sec { border:1px solid var(--border); border-radius:8px; background:var(--bg); padding:8px 10px; min-height:0; }
 .composer-sec .hd { display:flex; align-items:center; gap:6px; margin-bottom:5px; }
 .composer-sec .hd .ui-title { flex:1; font-size:10px; }
-.composer-id { font-size:18px; font-weight:800; letter-spacing:-.01em; line-height:1.15; }
+.composer-id { font-size:18px; font-weight:800; letter-spacing:-.01em; line-height:1.15; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
 .composer-addr { color:var(--muted); font-size:11px; }
 .composer-desc { font-size:11px; margin-top:3px; color:var(--fg); }
 .composer-picks { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
@@ -1476,7 +1487,7 @@
 .composer-bh.ok { color:var(--good); } .composer-bh.bad { color:var(--bad); } .composer-bh.idle { color:var(--muted); }
 .composer-bsub { font-size:11px; color:var(--muted); margin-top:2px; }
 .composer-counts { display:flex; gap:10px; font-size:11px; margin-top:4px; }
-.composer-diffs { margin-top:6px; display:flex; flex-direction:column; gap:3px; overflow:auto; min-height:0; }
+.composer-diffs { margin-top:6px; display:flex; flex-direction:column; gap:3px; overflow:auto; min-height:32px; }
 .composer-diff { font-size:10.5px; line-height:13px; padding:3px 6px; border-radius:4px; background:var(--surface2); border-left:2px solid var(--border); cursor:pointer; flex:none; }
 .composer-diff:hover { background:var(--sel); }
 .composer-diff .l1 { display:flex; gap:6px; align-items:baseline; }
@@ -1509,7 +1520,7 @@
 .composer-doc p { margin:8px 0; }
 .composer-doc ul { margin:4px 0 8px; padding-left:18px; color:var(--muted); font-size:11.5px; }
 .composer-doc .row { justify-content:flex-end; margin-top:10px; }
-.composer.is-narrow { grid-template-columns:minmax(0,1fr) 252px; grid-template-areas:"top top" "graph graph" "view view" "log side"; grid-template-rows:auto auto minmax(0,1fr) 124px; }
+.composer.is-narrow { grid-template-columns:minmax(0,1fr) 252px; grid-template-areas:"top top" "graph graph" "view view" "log side"; grid-template-rows:auto auto minmax(0,1fr) 148px; }
 .composer.is-narrow .composer-listing, .composer.is-narrow .composer-diffs, .composer.is-narrow .composer-pr, .composer.is-narrow .composer-runs, .composer.is-narrow .composer-hyp { display:none; }
 .composer.is-narrow .composer-sec { padding:6px 8px; }
 .composer.is-narrow .composer-bsub { display:none; }
@@ -2000,19 +2011,21 @@
         S.running = true; S.abort = false; S.phase = 'running'; S.runComp = comp; S.bench = null;
         runBtn.textContent = '■ Stop'; runBtn.classList.add('stop');
         paintApproaches(); paintBench(null, null, 'Running…');
-        bsub.textContent = `Scored against gold after M4. Main scored ${benchmark(S.main, S.main).pass} ✓ · ${benchmark(S.main, S.main).fail} ✗ on this house.`;
+        const mb = benchmark(S.main, S.main);
+        bsub.textContent = `Scored against gold after M4. Main scored ${mb.pass} ✓ · ${mb.fail} ✗ on this house.`;
         const selKey = S.selected;
         if (selKey) nodes[selKey].el.classList.remove('sel');
         S.selected = null;
         for (const s of STAGES) { nodes[s.key].el.classList.remove('regress'); setBadge(s.key, undefined); }
         const t0 = performance.now();
         const done = new Set();
+        const stale = iso ? dependants(keys[0]) : new Set();
         if (iso) {
           const sel = BY[keys[0]];
           for (const s of STAGES) {
-            if (BY[s.key].i < sel.i) { setNode(s.key, 'stored', { out: comp.out[s.key] }); done.add(s.key); }
-            else if (s.key === sel.key) setNode(s.key, 'queued');
-            else setNode(s.key, 'stale');
+            if (s.key === sel.key) setNode(s.key, 'queued');
+            else if (stale.has(s.key)) setNode(s.key, 'stale');
+            else { setNode(s.key, 'stored', { out: comp.out[s.key] }); if (BY[s.key].i < sel.i) done.add(s.key); }
           }
           log(`isolated ${sel.code} ${sel.key} · ${apText(A[sel.key])} on house ${comp.T.label}; upstream read from ${stored.label}`, 'info');
         } else {
@@ -2090,7 +2103,7 @@
         }
         paintBench(b, comp);
         const changed = KEYS.filter((k) => A[k] !== MAIN[k]);
-        const recorded = Note.addRun({ house: comp.T.label, what: iso ? `${keys[0]}: ${apText(A[keys[0]])} (isolated)` : (changed.map((k) => `${k}: ${apText(A[k])}`).join(', ') || 'all main'), headline: b.headline, regress: b.regress.length, improve: b.improve.length, score: b.score, mainScore: b.mainScore, usd: spent }, noteN);
+        const recorded = Note.addRun({ house: comp.T.label, what: iso ? `${keys[0]}: ${apText(A[keys[0]])} (isolated)` : (changed.map((k) => `${k}: ${apText(A[k])}`).join(', ') || 'all main'), headline: b.headline, regress: b.regress.length, improve: b.improve.length, ...scoreFields(b), usd: spent }, noteN);
         const v = Note.get();
         if (!recorded) log(`H-${noteN} was written up during this run, so the run is not recorded in H-${v.n}.`, 'warn');
         log(`benchmark vs gold: ${b.pass} ✓ · ${b.fail} ✗ · ${b.none} not scored${iso ? '' : ` · composed model ${f1(b.score)}/10 against the photos (main ${f1(b.mainScore)}/10)`}`, 'muted');
@@ -2100,7 +2113,7 @@
         log(`spent ${OS.usd(spent)} · H-${v.n} ${OS.usd(v.spent)} of ${OS.usd(CAP)} · today ${OS.usd(OS.spend.today())} of ${OS.usd(OS.spend.cap)}`, 'muted');
         sysLog(`[${OS.now().toISOString()}] composer ${iso ? 'isolated ' + keys[0] : 'run'} house ${comp.T.label}: ${b.headline} · ${OS.usd(spent)}`);
         const base = `${comp.T.kind === 'id' ? `House ${comp.T.label}` : comp.T.label} · ${iso ? `isolated ${BY[keys[0]].code}` : 'composed'}`;
-        const sub = iso ? `${BY[keys[0]].code} re-run on stored upstream outputs · ${plural(STAGES.length - BY[keys[0]].i - 1, 'downstream stage')} now stale` : `${comp.faces} faces · ${f1(comp.score)}/10 against the photos · ${OS.usd(spent)}`;
+        const sub = iso ? `${BY[keys[0]].code} re-run on stored upstream outputs · ${stale.size ? `${plural(stale.size, 'downstream stage')} now stale` : 'no stage needs it, so nothing is stale'}` : `${comp.faces} faces · ${f1(comp.score)}/10 against the photos · ${OS.usd(spent)}`;
         caption(base, sub); capT.dataset.base = base; capS.dataset.base = sub;
         gprog.textContent = `${iso ? 'isolated' : `${STAGES.length} / ${STAGES.length}`} · ${((performance.now() - t0) / 1000).toFixed(1)}s · ${OS.usd(spent)}`;
         paintApproaches(); paintNote(); paintListing(comp, comp);
@@ -2245,6 +2258,7 @@
         layoutGraph(); view.request();
       };
       S.key = (e) => {
+        if (win.el.querySelector('.ui-crash, .composer-sheet')) return;
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const k = e.key.toLowerCase();
         if (k === 'r') { S.running ? stop() : run(); e.preventDefault(); }
@@ -2272,7 +2286,6 @@
       const S = win.state;
       const house = typeof arg === 'string' ? arg : arg && (arg.house || arg.input);
       if (house && house !== S.input && !S.api.loadHouse(house)) return;
-      if (arg && arg.approaches) for (const [k, a] of Object.entries(arg.approaches)) S.api.setApproach(k, a);
       if (arg && arg.run) S.api.run();
     },
     onKey(win, e) { win.state.key?.(e); },
@@ -2294,8 +2307,11 @@
       if (a.startsWith('--stages=')) { stages = a.slice(9); continue; }
       const m = a.match(/^approach=(.*)$/i);
       if (m) {
-        for (const part of m[1].split(',').filter(Boolean)) {
+        const parts = m[1].split(',').filter(Boolean);
+        if (!parts.length) errors.push('APPROACH takes stage:name, e.g. APPROACH=massing:door_fit_1');
+        for (const part of parts) {
           const [st, ap] = part.split(':');
+          if (!st || !ap) { errors.push('APPROACH takes stage:name, e.g. APPROACH=massing:door_fit_1'); continue; }
           if (!BY[st]) { errors.push(`unknown stage '${st}'. Try: composer stages`); continue; }
           const list = approachList(st);
           const want = ap === 'before_cap' ? STORED : ap;
@@ -2364,7 +2380,7 @@
     io.println(b.headline, b.ok ? 'ok' : 'bad');
     const changed = KEYS.filter((k) => A[k] !== MAIN[k]);
     const what = iso ? `${keys.map((k) => `${k}: ${apText(A[k])}`).join(', ')} (isolated)` : (changed.map((k) => `${k}: ${apText(A[k])}`).join(', ') || 'all main');
-    const recorded = Note.addRun({ house: T.label, what, headline: b.headline, regress: b.regress.length, improve: b.improve.length, score: b.score, mainScore: b.mainScore, usd: res.usd }, v0.n);
+    const recorded = Note.addRun({ house: T.label, what, headline: b.headline, regress: b.regress.length, improve: b.improve.length, ...scoreFields(b), usd: res.usd }, v0.n);
     if (!recorded) io.println(`H-${v0.n} was written up during this run, so the run is not recorded in the new note.`, 'warn');
     const v = Note.get();
     io.println(`spent ${OS.usd(res.usd)} · H-${v.n} ${OS.usd(v.spent)} of ${OS.usd(CAP)} · today ${OS.usd(OS.spend.today())} of ${OS.usd(OS.spend.cap)}`, 'muted');

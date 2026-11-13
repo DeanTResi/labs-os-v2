@@ -218,7 +218,7 @@
       '/dev/null': '',
       [HOME + '/.brickty_history']: () => hist.join('\n') + (hist.length ? '\n' : ''),
       [LABS + '/' + SAVE_REL]: SAVE_TSX,
-      [LABS + '/Procfile.dev']: 'web: bin/rails server -p 3000\nvite: bin/vite dev\ncss: bin/rails tailwindcss:watch\njobs: bin/jobs\n',
+      [LABS + '/Procfile.dev']: 'web: bin/rails server -p 3000\nvite: bin/vite dev\ncss: bin/rails css:watch\njobs: bin/jobs\n',
       [LABS + '/package.json']: '{\n  "name": "labs",\n  "private": true,\n  "scripts": {\n    "dev": "bin/dev",\n    "check": "lint, types and unit tests",\n    "check:ci": "every step of CI\'s Frontend Checks job",\n    "design:sync": "record the design system sync",\n    "test": "unit tests"\n  }\n}\n',
     };
     for (const [p, c] of Object.entries(map)) {
@@ -473,6 +473,53 @@
         text() { const a = this.lines(); return a.length ? a.join('\n') + '\n' : ''; },
       };
     }
+    // A pipe between two stages of a pipeline. Lines arrive as the writer prints them.
+    // close() is the reader leaving: later writes are dropped and the writer's io.aborted turns true.
+    function makePipe() {
+      const q = []; let head = 0; let eof = false; let gone = false;
+      const waiters = new Set(); const sleepers = new Set();
+      const poke = (set) => { for (const f of [...set]) f(); };
+      return {
+        sleepers,
+        get gone() { return gone; },
+        push(l) { if (gone) return; q.push(l); poke(waiters); },
+        end() { eof = true; poke(waiters); },
+        close() { if (gone) return; gone = true; q.length = 0; head = 0; poke(waiters); poke(sleepers); },
+        // The next line, or null at the end of input. out is the reader's own output: when its pipe closes, reading stops.
+        read(out) {
+          return new Promise((res) => {
+            const take = () => {
+              if (gone || out?.broken) return null;
+              if (head < q.length) { const v = q[head]; q[head++] = undefined; if (head > 1024 && head * 2 > q.length) { q.splice(0, head); head = 0; } return v; }
+              return eof ? null : undefined;
+            };
+            const v = take();
+            if (v !== undefined) { res(v); return; }
+            out?.idle?.(); // about to wait for input, so the line this reader finished goes on now
+            const step = () => { const w = take(); if (w === undefined) return; waiters.delete(step); out?.sleepers?.delete(step); res(w); };
+            waiters.add(step); out?.sleepers?.add(step);
+          });
+        },
+        async all(out) { const a = []; for (let l; (l = await this.read(out)) !== null;) a.push(l); return a; },
+      };
+    }
+    // The writing end of a pipe. A line goes down the pipe once the writer starts the next one, waits for input,
+    // sleeps for 400 ms or more, or asks a question, so a progress line rewritten in place sends only its final state.
+    function pipeSink(pipe) {
+      let cur = null; let isOpen = false;
+      const send = () => { if (cur && !cur.removed) for (const l of cur.t.split('\n')) pipe.push(l); cur = null; isOpen = false; };
+      const hd = (r) => ({ el: null, set(c) { r.t = plain(c); }, remove() { r.removed = true; } });
+      return {
+        tty: false,
+        get broken() { return pipe.gone; },
+        sleepers: pipe.sleepers,
+        line(c) { const t = plain(c); if (isOpen) { isOpen = false; cur.t += t; return hd(cur); } send(); cur = { t }; return hd(cur); },
+        part(c) { const t = plain(c); if (isOpen) cur.t += t; else { send(); cur = { t }; isOpen = true; } },
+        clear() { cur = null; isOpen = false; },
+        idle() { if (!isOpen) send(); },
+        end() { send(); pipe.end(); },
+      };
+    }
 
     // ----- prompt and input rendering -----
     const inLabs = () => S.cwd === LABS || S.cwd.startsWith(LABS + '/');
@@ -626,13 +673,15 @@
     const newJob = () => { const j = { aborted: false, killed: false, done: false, sleeps: new Set(), trap: null }; j.killP = new Promise((r) => { j.killR = r; }); return j; };
     const wake = (job) => { for (const f of [...job.sleeps]) f(); };
     const killJob = (job) => { if (job.done || job.killed) return; job.killed = true; job.aborted = true; wake(job); job.killR(130); };
-    function jobSleep(job, ms) {
+    // o is the sleeper's output: when it is a pipe and the reader leaves, the sleep ends early.
+    function jobSleep(job, ms, o) {
       return new Promise((res) => {
-        if (job.aborted || win.closed) { res(); return; }
+        if (job.aborted || o?.broken || win.closed) { res(); return; }
+        if (ms >= 400) o?.idle?.();
         let t = 0;
-        const done = () => { clearTimeout(t); job.sleeps.delete(done); res(); };
+        const done = () => { clearTimeout(t); job.sleeps.delete(done); o?.sleepers?.delete(done); res(); };
         t = setTimeout(done, Math.max(0, ms) / OS.speed);
-        job.sleeps.add(done);
+        job.sleeps.add(done); o?.sleepers?.add(done);
       });
     }
     function ask(job, q, opt = {}) {
@@ -663,9 +712,10 @@
         cd: (p) => cdTo(p),
         get cols() { measure(); return S.cols; },
         get rows() { measure(); return S.rows; },
-        sleep: (ms) => jobSleep(job, ms),
-        get aborted() { return job.aborted || win.closed; },
-        prompt: (q, opt) => ask(job, q, opt),
+        sleep: (ms) => jobSleep(job, ms, o),
+        get aborted() { return job.aborted || win.closed || !!o.broken; },
+        read: () => (stdin && !Array.isArray(stdin) ? stdin.read(o) : Promise.resolve(null)),
+        prompt: (q, opt) => { o.idle?.(); return ask(job, q, opt); },
         open: (id, a) => OS.open(id, a),
         trap: (fn) => { job.trap = fn; },
         win,
@@ -701,13 +751,20 @@
       if (cmd.length > 1) for (const n of [...OS.commands.names(), ...S.aliases.keys()]) { if (n.length < 2) continue; const d = lev(cmd, n); if (d < bd) { bd = d; best = n; } }
       if (best) e.line([['Did you mean ', 'muted'], [best, 'ok'], ['?', 'muted']]);
     }
+    const temps = new Map();
     async function runCommand(argv, job, o, e, stdin, depth, noAlias) {
       let i = 0;
       while (i < argv.length && /^[A-Za-z_]\w*=/.test(argv[i])) i++;
       if (!argv.length) return 0;
-      const setv = (a) => { const j = a.indexOf('='); const k = a.slice(0, j); const prev = S.vars.get(k); S.vars.set(k, a.slice(j + 1)); return [k, prev]; };
-      if (i === argv.length) { argv.forEach(setv); return 0; }
-      const saved = argv.slice(0, i).map(setv);
+      const kv = (a) => { const j = a.indexOf('='); return [a.slice(0, j), a.slice(j + 1)]; };
+      if (i === argv.length) { for (const [k, v] of argv.map(kv)) { const t = temps.get(k); if (t) t.base = v; else S.vars.set(k, v); } return 0; }
+      // VAR=x cmd: stages of one pipeline overlap, so each key keeps a stack and gets its first value back at the end.
+      const saved = argv.slice(0, i).map(kv).map(([k, v]) => {
+        let t = temps.get(k);
+        if (!t) temps.set(k, (t = { base: S.vars.get(k), list: [] }));
+        const mine = { v }; t.list.push(mine); S.vars.set(k, v);
+        return [k, mine];
+      });
       const cmd = argv[i]; const args = argv.slice(i + 1);
       try {
         if (S.aliases.has(cmd) && !noAlias.has(cmd)) {
@@ -717,7 +774,13 @@
         const spec = lookup(cmd, e);
         if (spec === false) return 126;
         if (!spec) { notFound(cmd, e); return 127; }
-        const io = makeIO(job, o, e, stdin);
+        // Only commands marked stream read a pipe line by line. The rest get every line once the writer ends.
+        let input = stdin;
+        if (input && !Array.isArray(input) && !spec.stream) {
+          input = await Promise.race([input.all(o), job.killP]);
+          if (job.killed) return 130;
+        }
+        const io = makeIO(job, o, e, input);
         const p = (async () => spec.run.call(spec, args, io))();
         p.catch(() => {});
         const r = await Promise.race([p, job.killP]);
@@ -727,7 +790,11 @@
         e.line(`${cmd}: ${err?.message || err}`, 'bad');
         return 1;
       } finally {
-        for (const [k, prev] of saved) { if (prev === undefined) S.vars.delete(k); else S.vars.set(k, prev); }
+        for (const [k, mine] of saved) {
+          const t = temps.get(k); t.list.splice(t.list.indexOf(mine), 1);
+          if (t.list.length) S.vars.set(k, t.list[t.list.length - 1].v);
+          else { temps.delete(k); if (t.base === undefined) S.vars.delete(k); else S.vars.set(k, t.base); }
+        }
       }
     }
     function writeOut(abs, text, append, e, typed) {
@@ -736,37 +803,47 @@
         writeFile(abs, prev + text);
       } catch (err) { e.line('brickty: ' + errText('write', typed, err).replace(/^write: /, ''), 'bad'); }
     }
+    // Every stage runs at once, joined by pipes, so a stage that runs until Ctrl+C still feeds the next one.
+    // A stage that ends closes the pipe it reads, which ends the stage before it (head -3 stops ping).
     async function runPipeline(stages, job, o, e, stdin, depth, noAlias) {
-      let input = stdin; let code = 0;
-      for (let k = 0; k < stages.length; k++) {
-        const st = stages[k]; const isLast = k === stages.length - 1;
-        const argv = [];
-        for (const w of st.words) argv.push(...expandWord(w));
-        let outFile = null; let outTyped = ''; let append = false; let errMode = null; let errFile = null; let bad = false;
-        for (const r of st.redirs) {
-          if (r.op === '2>&1') { errMode = 'out'; continue; }
-          const target = expandWord(r.target)[0] ?? '';
-          const abs = OS.fs.resolve(S.cwd, target);
-          if (r.op === '<') {
-            try { input = abs === '/dev/null' ? [] : splitLines(OS.fs.read(abs)); } catch (err) { e.line('brickty: ' + errText('x', target, err).replace(/^x: /, ''), 'bad'); bad = true; }
-            continue;
+      const pipes = stages.slice(1).map(() => makePipe());
+      const runStage = async (k) => {
+        const st = stages[k]; const up = k ? pipes[k - 1] : null; const down = pipes[k] || null;
+        let ps = null;
+        try {
+          let input = up || stdin;
+          const argv = [];
+          for (const w of st.words) argv.push(...expandWord(w));
+          let outFile = null; let outTyped = ''; let append = false; let errMode = null; let errFile = null; let bad = false;
+          for (const r of st.redirs) {
+            if (r.op === '2>&1') { errMode = 'out'; continue; }
+            const target = expandWord(r.target)[0] ?? '';
+            const abs = OS.fs.resolve(S.cwd, target);
+            if (r.op === '<') {
+              try { input = abs === '/dev/null' ? [] : splitLines(OS.fs.read(abs)); } catch (err) { e.line('brickty: ' + errText('x', target, err).replace(/^x: /, ''), 'bad'); bad = true; }
+              continue;
+            }
+            const deny = abs === '/dev/null' ? null : denyWrite(abs) || (OS.fs.isDir(abs) ? 'Is a directory' : null) || (!OS.fs.isDir(OS.fs.dirname(abs)) ? 'No such file or directory' : null);
+            if (deny) { e.line(`brickty: ${target}: ${deny}`, 'bad'); bad = true; continue; }
+            if (r.op === '2>') { errMode = 'file'; errFile = abs; } else { outFile = abs; outTyped = target; append = r.op === '>>'; if (r.op === '&>') errMode = 'out'; }
           }
-          const deny = abs === '/dev/null' ? null : denyWrite(abs) || (OS.fs.isDir(abs) ? 'Is a directory' : null) || (!OS.fs.isDir(OS.fs.dirname(abs)) ? 'No such file or directory' : null);
-          if (deny) { e.line(`brickty: ${target}: ${deny}`, 'bad'); bad = true; continue; }
-          if (r.op === '2>') { errMode = 'file'; errFile = abs; } else { outFile = abs; outTyped = target; append = r.op === '>>'; if (r.op === '&>') errMode = 'out'; }
+          if (bad) return 1;
+          const cap = outFile ? capture() : null;
+          if (!cap && down) ps = pipeSink(down);
+          const so = cap || ps || o;
+          const ecap = errMode === 'file' ? capture() : null;
+          const se = errMode === 'out' ? so : ecap || e;
+          const code = await runCommand(argv, job, so, se, input, depth, noAlias);
+          if (outFile && outFile !== '/dev/null') writeOut(outFile, cap.text(), append, e, outTyped);
+          if (ecap && errFile !== '/dev/null') writeOut(errFile, ecap.text(), false, e, errFile);
+          return code;
+        } finally {
+          if (ps) ps.end(); else down?.end();
+          up?.close();
         }
-        if (bad) { code = 1; input = []; continue; }
-        const cap = !isLast || outFile ? capture() : null;
-        const so = cap || o;
-        const ecap = errMode === 'file' ? capture() : null;
-        const se = errMode === 'out' ? so : ecap || e;
-        code = await runCommand(argv, job, so, se, input, depth, noAlias);
-        if (outFile && outFile !== '/dev/null') writeOut(outFile, cap.text(), append, e, outTyped);
-        if (ecap && errFile !== '/dev/null') writeOut(errFile, ecap.text(), false, e, errFile);
-        input = cap && !outFile ? cap.lines() : (isLast ? null : []);
-        if (job.aborted) return 130;
-      }
-      return code;
+      };
+      const codes = await Promise.all(stages.map((_, k) => runStage(k)));
+      return job.aborted ? 130 : codes[codes.length - 1];
     }
     async function execText(text, job, o, e, stdin, depth, noAlias) {
       if (depth > 12) { e.line('brickty: aliases nested twelve deep. It is aliases all the way down.', 'bad'); return 1; }
@@ -794,14 +871,23 @@
     S.execNested = (text, io) => execText(text, io._ctx.job, io._ctx.o, io._ctx.e, io.stdin, 1, new Set());
 
     // ----- running a line from the prompt -----
+    // !! and !n, as bash does: not inside single quotes, and not after a backslash.
     function expandBang(text) {
-      let err = null;
-      const r = text.replace(/!(!|-?\d+)/g, (m, g) => {
-        if (g === '!') { if (!hist.length) { err = '!!: event not found'; return m; } return hist[hist.length - 1]; }
-        const n = parseInt(g, 10); const ev = n < 0 ? hist[hist.length + n] : hist[n - 1];
-        if (ev == null) { err = `${m}: event not found`; return m; }
-        return ev;
-      });
+      let err = null; let r = ''; let q = null;
+      for (let i = 0; i < text.length; i++) {
+        const c = text[i];
+        if (q === "'") { r += c; if (c === "'") q = null; continue; }
+        if (c === '\\') { r += text.slice(i, i + 2); i++; continue; }
+        if (c === '"') q = q ? null : '"';
+        else if (c === "'" && !q) q = "'";
+        const m = c === '!' ? /^!(!|-?\d+)/.exec(text.slice(i)) : null;
+        if (!m) { r += c; continue; }
+        let ev;
+        if (m[1] === '!') ev = hist[hist.length - 1];
+        else { const n = parseInt(m[1], 10); ev = n < 0 ? hist[hist.length + n] : hist[n - 1]; }
+        if (ev == null) { err ||= `${m[0]}: event not found`; ev = m[0]; }
+        r += ev; i += m[0].length - 1;
+      }
       return err ? { error: err } : { text: r };
     }
     function pushHist(t) {
@@ -920,25 +1006,32 @@
       return false;
     }
     function bell() { OS.sound.beep(440, 30, 'sine', 0.02); }
+    function killWord() {
+      const p = pos(); const cut = ta.value.slice(0, p).replace(/\s+$/, '').replace(/\S+$/, '');
+      ta.value = cut + ta.value.slice(p); caret(cut.length);
+    }
     function handleKey(e) {
       if (e.isComposing || e.keyCode === 229) return false;
       S.stick = true; bump();
       if (S.mode === 'search') return searchKey(e);
       const k = e.key || '';
+      // Outside macOS the browser keeps Ctrl+W and closes the tab, so Alt+Backspace deletes a word too.
+      if (e.altKey && !e.ctrlKey && !e.metaKey && k === 'Backspace') { killWord(); return true; }
       if (e.ctrlKey && !e.metaKey && !e.altKey) {
         switch (k.toLowerCase()) {
           case 'c': interrupt(); return true;
-          case 'd': if (!ta.value) { eof(); return true; } return false;
+          case 'd': {
+            if (!ta.value) { eof(); return true; }
+            const p = pos(); if (p < ta.value.length) { ta.value = ta.value.slice(0, p) + ta.value.slice(p + 1); caret(p); }
+            return true;
+          }
           case 'l': if (S.mode !== 'running') { scr.clear(); render(); } return true;
           case 'a': caret(0); return true;
           case 'e': if (!acceptGhost()) caret(ta.value.length); return true;
           case 'b': caret(pos() - 1); return true;
           case 'f': if (!(pos() >= ta.value.length && acceptGhost())) caret(pos() + 1); return true;
           case 'u': { const p = pos(); ta.value = ta.value.slice(p); caret(0); return true; }
-          case 'w': {
-            const p = pos(); const before = ta.value.slice(0, p).replace(/\s+$/, ''); const cut = before.replace(/\S+$/, '');
-            ta.value = cut + ta.value.slice(p); caret(cut.length); return true;
-          }
+          case 'w': killWord(); return true;
           case 'r': if (S.mode === 'idle') startSearch(); return true;
           case 'p': if (S.mode === 'idle') histMove(-1); return true;
           case 'n': if (S.mode === 'idle') histMove(1); return true;
@@ -1052,7 +1145,6 @@
     win.on('focus', () => { root.classList.remove('terminal-blur'); S.focusInput(); });
     win.on('blur', () => root.classList.add('terminal-blur'));
     win.on('resize', () => { measure(); bump(); });
-    win.on('close', () => { if (S.job) killJob(S.job); sessions.delete(S); });
     S.onKey = (e) => {
       if (!e.key) return;
       const sel = window.getSelection();
@@ -1105,13 +1197,20 @@
     return { f, rest };
   }
   // Files or stdin -> [{name, lines}] ; errors print and come back as {err: true}
+  // A stream command's piped stdin comes back as {live: true}: read it with eachLine.
   function readSources(io, files, cmd) {
-    if (!files.length) return [{ name: '-', lines: io.stdin || [] }];
+    const std = () => (io.stdin && !Array.isArray(io.stdin) ? { name: '-', live: true, lines: [] } : { name: '-', lines: io.stdin || [] });
+    if (!files.length) return [std()];
     return files.map((f) => {
-      if (f === '-') return { name: '-', lines: io.stdin || [] };
+      if (f === '-') return std();
       const abs = OS.fs.resolve(io.cwd, f);
       try { return { name: f, lines: splitLines(OS.fs.read(abs)) }; } catch (e) { io.error(errText(cmd, f, e)); return { name: f, err: true, lines: [] }; }
     });
+  }
+  // fn gets each line of a source, a piped one as it arrives. fn returns false to stop reading.
+  async function eachLine(io, src, fn) {
+    if (!src.live) { for (const l of src.lines) if (fn(l) === false) return; return; }
+    for (let l; (l = await io.read()) !== null;) if (fn(l) === false) return;
   }
   const isExec = (abs, dir) => !dir && (/\/bin\/[^/]+$/.test(abs) || safeRead(abs).startsWith('#!'));
   function entryFor(abs, label) {
@@ -1181,13 +1280,13 @@
   });
   reg('pwd', 'files', { desc: 'Print the working directory', usage: 'pwd', run(args, io) { io.println(io.cwd); return 0; } });
   const catSpec = (nm) => ({
-    desc: nm === 'cat' ? 'Print files' : 'Print files. There is no pager. There is scrollback', usage: `${nm} [-n] [file...]`,
-    run(args, io) {
+    desc: nm === 'cat' ? 'Print files' : 'Print files. There is no pager. There is scrollback', usage: `${nm} [-n] [file...]`, stream: true,
+    async run(args, io) {
       const o = getopts(args, { bool: 'nA' });
       if (o.bad) { io.error(`${nm}: invalid option -- '${o.bad}'`); return 1; }
       let n = 0;
       const srcs = readSources(io, o.rest, nm);
-      for (const s of srcs) for (const l of s.lines) io.println(o.f.n ? [[String(++n).padStart(6), 'faint'], '  ', l] : l);
+      for (const s of srcs) await eachLine(io, s, (l) => { io.println(o.f.n ? [[String(++n).padStart(6), 'faint'], '  ', l] : l); });
       if (nm !== 'cat' && io.isTTY) io.println('(END)', 'inv');
       return srcs.some((s) => s.err) ? 1 : 0;
     },
@@ -1197,6 +1296,7 @@
   syn('more', 'less');
   const headTail = (nm) => ({
     desc: nm === 'head' ? 'The first lines of a file or a pipe' : 'The last lines of a file or a pipe', usage: `${nm} [-n N] [file...]` + (nm === 'tail' ? ' [-f]' : ''),
+    stream: nm === 'head',
     async run(args, io) {
       let n = 10; let follow = false; const rest = [];
       for (let i = 0; i < args.length; i++) {
@@ -1209,11 +1309,11 @@
       }
       if (!Number.isFinite(n) || n < 0) { io.error(`${nm}: invalid number of lines`); return 1; }
       const srcs = readSources(io, rest, nm);
-      srcs.forEach((s, i) => {
-        if (s.err) return;
+      for (const [i, s] of srcs.entries()) {
+        if (s.err) continue;
         if (srcs.length > 1) { if (i) io.println(''); io.println(`==> ${s.name} <==`, 'muted'); }
-        (nm === 'head' ? s.lines.slice(0, n) : n ? s.lines.slice(-n) : []).forEach((l) => io.println(l));
-      });
+        if (nm === 'head') { let got = 0; if (n) await eachLine(io, s, (l) => { io.println(l); return ++got < n; }); } else (n ? s.lines.slice(-n) : []).forEach((l) => io.println(l));
+      }
       if (follow) {
         io.println('tail: following. Nothing is being written. It is following anyway. Ctrl+C stops it.', 'faint');
         while (!io.aborted) await io.sleep(1000);
@@ -1279,12 +1379,17 @@
       if (o.bad) { io.error(`rm: invalid option -- '${o.bad}'`); return 1; }
       const rec = o.f.r || o.f.R; const force = o.f.f;
       if (!o.rest.length) { if (force) return 0; io.error('rm: missing operand'); return 1; }
-      const targets = o.rest.map((p) => ({ p, abs: OS.fs.resolve(io.cwd, p) }));
-      const sacred = rec && targets.find((t) => isSacred(t.abs));
+      const targets = o.rest.map((p) => ({ p, abs: OS.fs.resolve(io.cwd, p), dots: /(^|\/)\.\.?\/*$/.test(p) }));
+      const sacred = rec && targets.find((t) => !t.dots && isSacred(t.abs));
       if (sacred) { brickyIntervenes(io, tilde(sacred.abs)); return 1; }
       let code = 0;
       for (const t of targets) {
+        if (rec && t.dots) { io.error(`rm: refusing to remove '.' or '..' directory: skipping '${t.p}'`); code = 1; continue; }
         if (!OS.fs.exists(t.abs)) { if (!force) { io.error(`rm: cannot remove '${t.p}': No such file or directory`); code = 1; } continue; }
+        if (rec && (t.abs === io.cwd || io.cwd.startsWith(t.abs + '/'))) {
+          io.error(`rm: refusing to remove '${t.p}': ${t.abs === io.cwd ? 'it is the working directory' : 'the working directory is inside it'}. cd out of it first.`);
+          code = 1; continue;
+        }
         if (OS.fs.isDir(t.abs) && !rec) { io.error(`rm: cannot remove '${t.p}': Is a directory`); code = 1; continue; }
         const deny = denyWrite(t.abs);
         if (deny) { io.error(`rm: cannot remove '${t.p}': ${deny}`); code = 1; continue; }
@@ -1400,8 +1505,8 @@
     return segs;
   }
   reg('grep', 'text', {
-    desc: 'Find lines that match', usage: 'grep [-i] [-n] [-r] [-v] [-c] [-l] [-w] pattern [file...]',
-    run(args, io) {
+    desc: 'Find lines that match', usage: 'grep [-i] [-n] [-r] [-v] [-c] [-l] [-w] pattern [file...]', stream: true,
+    async run(args, io) {
       const o = getopts(args, { bool: 'inrRvcwlHEFhs', val: 'e' });
       if (o.bad) { io.error(`grep: invalid option -- '${o.bad}'`); return 2; }
       const f = o.f;
@@ -1424,15 +1529,16 @@
       let total = 0;
       for (const s of srcs) {
         if (s.err) continue;
-        let count = 0;
-        s.lines.forEach((l, i) => {
+        let count = 0; let i = 0;
+        await eachLine(io, s, (l) => {
+          i++;
           re.lastIndex = 0;
           if (re.test(l) === !!f.v) return;
           count++; total++;
           if (f.c || f.l) return;
           const segs = [];
           if (showName) segs.push([s.name, 'accent2'], [':', 'info']);
-          if (f.n) segs.push([String(i + 1), 'ok'], [':', 'info']);
+          if (f.n) segs.push([String(i), 'ok'], [':', 'info']);
           if (f.v) segs.push(l); else segs.push(...markMatches(l, re));
           io.println(segs);
         });
@@ -1514,17 +1620,17 @@
     },
   });
   reg('tee', 'text', {
-    desc: 'Copy a pipe to files as it passes', usage: 'tee [-a] file...',
-    run(args, io) {
+    desc: 'Copy a pipe to files as it passes', usage: 'tee [-a] file...', stream: true,
+    async run(args, io) {
       const o = getopts(args, { bool: 'a' });
-      const text = (io.stdin || []).map((l) => l + '\n').join('');
+      let text = '';
+      await eachLine(io, readSources(io, [], 'tee')[0], (l) => { text += l + '\n'; io.println(l); });
       let code = 0;
       for (const f of o.rest) {
         const abs = OS.fs.resolve(io.cwd, f); const deny = denyWrite(abs);
         if (deny) { io.error(`tee: ${f}: ${deny}`); code = 1; continue; }
         try { writeFile(abs, (o.f.a && OS.fs.isFile(abs) ? OS.fs.read(abs) : '') + text); } catch (e) { io.error(errText('tee', f, e)); code = 1; }
       }
-      (io.stdin || []).forEach((l) => io.println(l));
       return code;
     },
   });
@@ -1561,6 +1667,7 @@
       io.println('');
       io.println([['Pipes ', 'faint'], ['|', 'accent'], ['  chains ', 'faint'], [';  &&  ||', 'accent'], ['  redirects ', 'faint'], ['>  >>  <', 'accent'], ['  variables ', 'faint'], ['$HOME $USER $?', 'accent2']]);
       io.println([['Tab', 'fg'], [' completes. ', 'faint'], ['↑ ↓', 'fg'], [' remember. ', 'faint'], ['Ctrl+R', 'fg'], [' searches. ', 'faint'], ['Ctrl+C', 'fg'], [' stops. ', 'faint'], ['Ctrl+L', 'fg'], [' clears.', 'faint']]);
+      io.println([['Alt+Backspace', 'fg'], [' deletes a word. So does ', 'faint'], ['Ctrl+W', 'fg'], [', but on most systems the browser takes it and closes the tab.', 'faint']]);
       io.println([['help <command>', 'fg'], [' for one command. ', 'faint'], ['man <command>', 'fg'], [' for more words than that.', 'faint']]);
       return 0;
     },
@@ -1782,7 +1889,7 @@
     complete: () => [...new Set(OS.wm.list().map((w) => w.app.id))],
     run(args, io) {
       if (!args[0]) { io.error('killall: usage: killall app'); return 1; }
-      if (args[0] === 'bricky') { io.error('killall: bricky: Operation not permitted. He is load-bearing. He was told not to say that.'); return 1; }
+      if (args[0] === 'bricky') { io.error('killall: bricky: Operation not permitted. He is pid 1. Everything else is his child process.'); return 1; }
       const ws = OS.wm.list().filter((w) => w.app.id === args[0]);
       if (!ws.length) { io.error(`${args[0]}: no process found`); return 1; }
       ws.forEach((w) => w.close());
@@ -2262,7 +2369,7 @@
       const [sub, ...rest] = args;
       if (!sub) { io.println('npm <command>'); io.println(''); io.println('Usage: npm install | npm run <script> | npm test', 'muted'); return 1; }
       if (sub === 'install' || sub === 'i' || sub === 'ci') return npmInstall(io);
-      if (sub === 'test' || sub === 't') { io.println('> vitest run', 'muted'); await io.sleep(600); if (io.aborted) return 130; io.println(' Test Files  96 passed (96)', 'ok'); io.println('      Tests  812 passed (812)', 'ok'); return 0; }
+      if (sub === 'test' || sub === 't') { io.println('> test-runner run', 'muted'); await io.sleep(600); if (io.aborted) return 130; io.println(' Test Files  96 passed (96)', 'ok'); io.println('      Tests  812 passed (812)', 'ok'); return 0; }
       if (sub === 'run' || sub === 'run-script') {
         const s = rest[0];
         if (!s) { io.println('Scripts available in labs via `npm run`:'); [['dev', 'bin/dev'], ['check', 'lint, types and unit tests'], ['check:ci', "every step of CI's Frontend Checks job"], ['design:sync', 'record the design system sync'], ['test', 'unit tests']].forEach(([k, v]) => { io.println('  ' + k, 'ok'); io.println('    ' + v, 'muted'); }); return 0; }
@@ -2589,11 +2696,11 @@
       'Fingerprinted Composer paths need an end-to-end benchmark run before merge. I will describe the run instead.',
       'Ground is 0, first is 1. I am confident about this until the next compaction.',
       'The model scores about 5/10 against the photos. So do the correct answers. I can match that.',
+      'There are two 3D viewers. I will change the one without textures. It is closer.',
     ],
     ui: [
       'This touches the configurator. It has had five design reviews. I will keep the change small, for round 6.',
       'The width is always 3 m. The cost engine prices by area alone. I will not touch the width.',
-      'There are two 3D viewers. I will change the one without textures. It is closer.',
       'The chips name the surface they paint. I will name mine the same way.',
     ],
     test: ['I will not run the full test suite. AGENTS.md was clear about that. I will not run the small one either.'],
@@ -2842,6 +2949,7 @@
   reg('sl', 'fun', {
     desc: 'A skip lorry drives across. You meant ls', usage: 'sl',
     async run(args, io) {
+      if (!io.isTTY) { LORRY.forEach((r) => io.println(r.trimEnd())); return 0; }
       const cols = io.cols; const W = Math.max(...LORRY.map((r) => r.length));
       const hds = LORRY.map(() => io.println(''));
       let warned = false;
@@ -2878,6 +2986,17 @@
     desc: 'Composer page codes, falling. Ctrl+C to leave', usage: 'matrix',
     async run(args, io) {
       const rows = Math.max(6, io.rows - 2); const cols = io.cols - 1;
+      if (!io.isTTY) {
+        // Into a pipe, the code falls one row at a time, as page codes, so grep and head have something to read.
+        const codes = OS.data.stages.map((s) => s.code);
+        while (!io.aborted) {
+          let row = '';
+          while (row.length < cols - 4) row += Math.random() < 0.45 ? ' '.repeat(1 + Math.floor(Math.random() * 3)) : codes[Math.floor(Math.random() * codes.length)] + ' ';
+          io.println(row.trimEnd());
+          await io.sleep(70);
+        }
+        return 130;
+      }
       const glyphs = 'P1S1F1F2P4P2P3P11P6P7P14P5P13P8P12P9P10M1M2M3M5M4░▒▓0.52.7#$%&*+=<>lunaterragold';
       const hint = io.println('matrix: Ctrl+C to leave.', 'faint');
       const hds = Array.from({ length: rows }, () => io.println(''));
@@ -2921,7 +3040,7 @@
     const used = Math.min(998000, 412118 + OS.spend.tokens() + Math.floor(performance.now() / 40));
     return [
       ['OS', `${os} x86_64`],
-      ['Kernel', 'linux-labs 6.22.0-composed'],
+      ['Kernel', '6.22.0-composed'],
       ['Uptime', uptimeText()],
       ['Packages', `${OS.data.stages.length} (stages), ${installed().length} (brick), 1,284 (npm)`],
       ['Shell', `brickty ${VERSION}`],

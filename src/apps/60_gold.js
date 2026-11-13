@@ -314,13 +314,14 @@
     for (let k = 0; k < n; k++) levels.push({ lvl: k, y0: stTop(k), y1: stTop(k) + SH });
     if (inRoof) levels.push({ lvl: n, y0: ridge - 4, y1: eaves });
 
-    const num = 1 + (OS.hash('addr:' + id) % 63);
+    // Street from id mod the street count, number from id mod 61 (a prime), so no two houses share an address.
+    const num = 1 + (id % 61) + 61 * Math.floor(id / (61 * STREETS.length));
     const photoOf = 8 + (OS.hash('photos:' + id) % 11);
     return {
       id, era, view, form, n, roof, lower, inRoof, storeys, finish, brickHex, wallHex, wallTruth, doorHex, doorTruth, roofHex, frameHex, winStyle,
       pxm, G, x0, x1, fw, SH, base, eaves, ridge, rise, cols, colW, doorCol, nbSide, wins, door, bay, porch, dormers, chimneys, ext, steps, neighbours, nbWins, levels,
       marks: marks.map((m) => ({ ...m, x: Math.round(m.x), y: Math.round(m.y), w: Math.round(m.w), h: Math.round(m.h) })),
-      address: `${num} ${STREETS[OS.hash('street:' + id) % STREETS.length]}`,
+      address: `${num} ${STREETS[id % STREETS.length]}`,
       photoNo: 1, photoOf,
       sky: C(0.55) ? 'overcast' : 'clear', sun: C(0.5) ? -1 : 1,
       truth: { front: view, storeys, finish, wall: wallTruth, door: doorTruth, roof },
@@ -905,13 +906,6 @@
     return { compared, agreed };
   }
 
-  // ---------- writing ----------
-  function writeGold(path, text) {
-    // /gold is mounted read-only (the boot log says so). The disk does not refuse writes there yet, so the labeller does.
-    if (path === '/gold' || path.startsWith('/gold/')) { const e = new Error(`${path}: Read-only file system`); e.code = 'EPERM'; throw e; }
-    OS.fs.write(path, text);
-  }
-
   // ---------- styles ----------
   function css() {
     if (document.getElementById('gold-css')) return;
@@ -1135,12 +1129,15 @@
       const cache = new Map();
       function makeHouseCached(id) { if (!cache.has(id)) cache.set(id, makeHouse(id)); return cache.get(id); }
 
-      // ----- drafts: one per house, so moving between houses loses nothing -----
+      // ----- drafts: one per house. Answers, marks, labeller-2's copy and the resolutions survive a move to another house -----
       const drafts = () => OS.store.get('gold.drafts', {});
       function saveDraft() {
         if (!st.H) return;
         const all = drafts();
-        all[st.H.id] = { qi: st.step === 'q' ? st.qi : Q.length - 1, ans: st.ans, unsure: st.unsure, marks: st.marks, seq: st.seq };
+        all[st.H.id] = {
+          qi: st.step === 'q' ? st.qi : Q.length - 1, ans: st.ans, unsure: st.unsure, marks: st.marks, seq: st.seq,
+          step: st.bot ? st.step : 'q', resKey: st.resKey, dec: st.dec, bot: st.bot && { ...st.bot, shown: st.bot.log.length },
+        };
         OS.store.set('gold.drafts', all);
       }
       function dropDraft(id) { const all = drafts(); delete all[id]; OS.store.set('gold.drafts', all); }
@@ -1153,6 +1150,10 @@
         Object.assign(st, { step: 'q', qi: 0, ans: {}, unsure: {}, marks: [], sel: null, seq: 1, undo: [], tool: null, bot: null, botErr: null, botBusy: false, dec: {}, saved: null, reason: '', drag: null });
         const dr = drafts()[id];
         if (dr) Object.assign(st, { qi: OS.clamp(dr.qi | 0, 0, Q.length - 1), ans: dr.ans || {}, unsure: dr.unsure || {}, marks: Array.isArray(dr.marks) ? dr.marks : [], seq: dr.seq || 1 });
+        if (dr?.bot?.house === id) {
+          Object.assign(st, { bot: dr.bot, dec: dr.dec || {} });
+          if (['compare', 'resolve', 'save'].includes(dr.step)) Object.assign(st, { step: dr.step, resKey: dr.resKey ?? null });
+        }
         OS.store.set('gold.current', id);
         renderQueue(); renderAll();
         return true;
@@ -1503,7 +1504,7 @@
           if (!r.ok) { st.botErr = r.message; st.bot = null; renderAll(); return; }
           const s = stats(); s.botUsd = Math.round((s.botUsd + b.cost) * 100) / 100; OS.store.set('gold.stats', s);
           const bot = { ...b, house: H.id, shown: 0 };
-          st.bot = bot; st.botBusy = true; renderAll();
+          st.bot = bot; st.botBusy = true; saveDraft(); renderAll();
           for (let i = 0; i < b.log.length; i++) {
             await win.sleep(260);
             if (win.closed || st.bot !== bot) return;
@@ -1513,9 +1514,10 @@
           if (win.closed || st.bot !== bot) return;
           st.botBusy = false; renderQueue();
         }
+        saveDraft();
         if (st.step === 'compare') renderAll();
       }
-      function backToMarks() { st.step = 'q'; st.qi = Q.length - 1; renderAll(); }
+      function backToMarks() { st.step = 'q'; st.qi = Q.length - 1; saveDraft(); renderAll(); }
       function compareView(body, foot) {
         if (st.botErr) {
           body.append(h('div', { class: 'gold-qt' }, 'labeller-2 did not answer'), h('div', { class: 'gold-rule' }, st.botErr),
@@ -1555,7 +1557,7 @@
         if (st.botBusy || !st.bot) return;
         const p = pending();
         if (p.length) { st.step = 'resolve'; st.resKey = p[0].key; } else st.step = 'save';
-        renderAll();
+        saveDraft(); renderAll();
       }
 
       // ----- resolution -----
@@ -1573,7 +1575,7 @@
         body.append(h('div', { class: 'gold-two' }, ans('Copy 1 · you' + (it.ua ? ' · unsure' : ''), it.a, 'c1'), ans('Copy 2 · labeller-2' + (it.ub ? ' · unsure' : ''), it.b, 'c2')));
         if (it.cmp?.detail) body.append(h('div', { class: 'ui-muted' }, it.cmp.detail + (it.cmp.de != null ? (it.cmp.eq ? ': the same colour' : ': different colours') : '')));
         const rule = Q[QI[it.key]].colour ? RULE.colour : RULE[it.key] || '';
-        body.append(h('div', { class: 'gold-rule' }, RULE[it.stat]), rule ? h('div', { class: 'gold-rule' }, rule) : null);
+        body.append(h('div', { class: 'gold-rule' }, RULE[it.stat]), rule ? h('div', { class: 'gold-rule' }, rule) : '');
         const opts = h('div', { class: 'gold-opts' });
         const choices = it.stat === 'flag'
           ? [[1, 'stands', 'Stands', 'the answer as given'], [4, 'drop', 'Drop', 'left out of scoring']]
@@ -1590,7 +1592,7 @@
         st.dec[st.resKey] = d;
         const p = pending();
         if (p.length) st.resKey = p[0].key; else { st.step = 'save'; st.resKey = null; }
-        renderAll();
+        saveDraft(); renderAll();
       }
 
       // ----- saving -----
@@ -1629,11 +1631,11 @@
         const yml = toYaml(st, st.reason.trim());
         if (where === 'gold') {
           const p = `/gold/houses/${st.H.id}/answers.yml`;
-          try { writeGold(p, yml); } catch (err) {
+          try { OS.fs.write(p, yml); } catch (err) {
             const s = stats(); s.eperm++; OS.store.set('gold.stats', s); renderQueue();
             win.crash({
               title: 'Read-only file system', icon: 'padlock', code: `${err.code || 'EPERM'} · ${p}`,
-              lines: [`open('${p}', O_WRONLY): Operation not permitted.`, 'Gold is never stored. It is derived on every read.', 'Gold is never edited, only overridden.'],
+              lines: [String(err.message), 'Gold is never stored. It is derived on every read.'],
               details: [`$ mount | grep gold`, `gold on /gold type goldfs (ro,nosuid,derived-on-read)`, `$ ls ${OVR_DIR.replace(OS.fs.home, '~')}/`, OS.fs.exists(OVR_DIR) ? OS.fs.ls(OVR_DIR).map((f) => f.name).join('  ') || '(empty)' : 'ls: cannot access: No such file or directory'],
               actions: [{ label: `Write ~/gold-overrides/${st.H.id}.yml`, primary: true, run: () => { doSave('override'); } }, { label: 'Cancel', run: () => renderPanel() }],
             });
@@ -1673,7 +1675,7 @@
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const ae = document.activeElement;
         if (e.key === 'Enter' && ae?.tagName === 'BUTTON' && win.body.contains(ae) && ae.matches(':focus-visible')) return;
-        const crash = win.body.querySelector('.ui-crash');
+        const crash = win.el.querySelector('.ui-crash');
         if (crash) {
           if (e.key === 'Enter') { e.preventDefault(); crash.querySelector('.ui-btn.primary')?.click(); }
           else if (e.key === 'Escape') { e.preventDefault(); const b = crash.querySelectorAll('.ui-btn'); b[b.length - 1]?.click(); }

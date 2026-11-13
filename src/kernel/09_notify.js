@@ -72,7 +72,7 @@
       ),
       h('div', { class: 'ft' }, actions.map((a) => h('button', { class: 'ui-btn' + (a.primary ? ' primary' : ''), onclick: () => { const keep = a.run?.(); if (keep !== true) close(); } }, a.label))),
     ));
-    win.body.append(panel);
+    win.el.append(panel);
     OS.sound.error();
     OS.emit('crash', { win, spec });
     return panel;

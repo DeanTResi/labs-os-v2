@@ -114,9 +114,6 @@
 
   // £ per m² of floor, low and high. The cost engine prices by area alone.
   const RATE = { rear: [2050, 2750], side: [1950, 2650], infill: [2350, 3150], loft: [1650, 2250], wrap: [2250, 3000] };
-  const FACADE = { rear: 0.9, side: 1.15, infill: 0.55, wrap: 0.85, loft: 0.45 };
-  const WALL_DELTA = { 'red-brick': [0, 0], 'yellow-brick': [10, 25], 'white-render': [-15, 0], zinc: [110, 170], timber: [35, 65] };
-  const ROOF_DELTA = { slate: [0, 0], clay: [18, 30], concrete: [-12, -4], zinc: [95, 150], timber: [30, 55] };
   const GLAZING = { rear: [180, 520], side: [120, 340], infill: [420, 980], wrap: [260, 650], loft: [110, 300] };
   const APR = 0.079;
 
@@ -134,13 +131,9 @@
   function estimate(d) {
     if (d.ext === 'existing') return null;
     const A = AREAS[d.ext][d.size];
-    const fac = A * FACADE[d.ext];
     const [rl, rh] = RATE[d.ext];
-    const wall = d.ext === 'loft' ? [0, 0] : WALL_DELTA[d.wall] || [0, 0];
-    const roof = ROOF_DELTA[d.roofMat] || [0, 0];
-    const roofArea = d.ext === 'loft' ? fac : A;
     const v = {
-      shell: [A * rl + fac * wall[0] + roofArea * roof[0], A * rh + fac * wall[1] + roofArea * roof[1]],
+      shell: [A * rl, A * rh],
       glazing: [A * GLAZING[d.ext][0], A * GLAZING[d.ext][1]],
       kitchen: [9000, 28000],
       bathroom: [6000, 15000],
@@ -153,8 +146,8 @@
     const pre = [...base, 'contingency'];
     v.vat = [sum(pre, 0) * 0.2, sum(pre, 1) * 0.2];
     const rows = ROWS.map((r) => ({ ...r, low: r500(v[r.key][0]), high: r500(v[r.key][1]), on: on(r.key) }));
-    const all = [...pre, 'vat'];
-    return { area: A, rows, low: r500(sum(all, 0)), high: r500(sum(all, 1)) };
+    const total = (f) => rows.filter((r) => r.on).reduce((s, r) => s + r[f], 0);
+    return { area: A, rows, low: total('low'), high: total('high') };
   }
   const money = (n) => '£' + Math.round(n).toLocaleString('en-GB');
   const range = (lo, hi) => `${money(lo)} – ${money(hi)}`;
@@ -1303,9 +1296,9 @@
         return { key: k, label: ROOF_LABELS[k], icon: k, smallIcon: true, removed, sub: removed ? 'Removed in review' : 'Same price', cfg: 'roof-' + k };
       }), () => st.d.roofShape[st.d.ext], (k) => setDesign({ roofShape: { ...st.d.roofShape, [st.d.ext]: k } }));
       roofs.el.dataset.fx = 'radius gap selected option';
-      const walls = tileGroup('mats', () => WALL_OPTIONS.map(([k, n]) => ({ key: k, label: n, sw: k, cfg: 'wall-' + k })), () => st.d.wall, (k) => setDesign({ wall: k }));
+      const walls = tileGroup('mats', () => WALL_OPTIONS.map(([k, n]) => ({ key: k, label: n, sw: k, sub: 'Same price', cfg: 'wall-' + k })), () => st.d.wall, (k) => setDesign({ wall: k }));
       walls.el.dataset.fx = 'radius gap selected';
-      const roofMats = tileGroup('mats', () => [...ROOF_OPTIONS, ...(st.d.ext === 'loft' ? LOFT_EXTRA : [])].map(([k, n]) => ({ key: k, label: n.replace(' tiles', ''), sw: k, cfg: 'roofmat-' + k })), () => st.d.roofMat, (k) => setDesign({ roofMat: k }));
+      const roofMats = tileGroup('mats', () => [...ROOF_OPTIONS, ...(st.d.ext === 'loft' ? LOFT_EXTRA : [])].map(([k, n]) => ({ key: k, label: n.replace(' tiles', ''), sw: k, sub: 'Same price', cfg: 'roofmat-' + k })), () => st.d.roofMat, (k) => setDesign({ roofMat: k }));
       roofMats.el.dataset.fx = 'radius gap selected';
 
       const sizeInfo = h('div', { class: K('note') }, h('span', { html: IC.info }).firstChild,

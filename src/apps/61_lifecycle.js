@@ -89,7 +89,7 @@
     };
     add(2701, 'backlog', t('Composer material library: tag sidebar'));
     add(2702, 'backlog', t('Command palette: open a house or run by id'));
-    add(2703, 'backlog', t('Bump vitest'), { labels: ['eng-tweak'] });
+    add(2703, 'backlog', t('Bump the test runner'), { labels: ['eng-tweak'] });
     add(2704, 'backlog', t('icons fill ~82%'), { labels: ['design-tweak'] });
     add(2705, 'frame', t('Admin command palette'));
     add(2706, 'frame', t('Edit home with Undo'));
@@ -521,8 +521,8 @@
         save(); render(); reveal(id);
       }
       async function runRetro(id) {
-        const c = card(id); const gen = st.gen;
-        const steps = [`reading the exhaust: ${c.hist.length} history lines`, `${c.grill.length} grill answers, ${c.pr ? `PR #${c.pr}` : 'no PR'}`, 'citing every claim', `filing PL-${board.nextPl}`];
+        const c = card(id); const gen = st.gen; const plId = board.nextPl++;
+        const steps = [`reading the exhaust: ${c.hist.length} history lines`, `${c.grill.length} grill answers, ${c.pr ? `PR #${c.pr}` : 'no PR'}`, 'citing every claim', `filing PL-${plId}`];
         st.busy[id] = { step: 0, of: steps.length + 1, text: 'retro starting' };
         renderCard(id);
         for (let i = 0; i < steps.length; i++) {
@@ -533,8 +533,7 @@
         }
         await win.sleep(480);
         if (win.closed || st.gen !== gen || !board.cards[id]) return;
-        const pl = { id: `PL-${board.nextPl}`, card: id, text: LEARNINGS[(board.nextPl - 1) % LEARNINGS.length], at: OS.now().toISOString() };
-        board.nextPl++;
+        const pl = { id: `PL-${plId}`, card: id, text: LEARNINGS[(plId - 1) % LEARNINGS.length], at: OS.now().toISOString() };
         board.learnings.unshift(pl);
         try {
           const prev = OS.fs.exists(LEARN_FILE) ? OS.fs.read(LEARN_FILE) : '# Process learnings\n\nFiled by the retro. Read by the next retro.\n\n';
@@ -660,8 +659,8 @@
       st.key = (e) => {
         if (e.ctrlKey || e.metaKey || e.altKey) return;
         const ae = document.activeElement;
-        if (e.key === 'Enter' && ae?.tagName === 'BUTTON' && win.body.contains(ae) && ae.matches(':focus-visible')) return;
-        const crash = win.body.querySelector('.ui-crash');
+        if (e.key === 'Enter' && ae?.tagName === 'BUTTON' && win.el.contains(ae) && ae.matches(':focus-visible')) return;
+        const crash = win.el.querySelector('.ui-crash');
         if (crash) {
           if (e.key === 'Enter') { e.preventDefault(); crash.querySelector('.ui-btn.primary')?.click(); }
           else if (e.key === 'Escape') { e.preventDefault(); const b = crash.querySelectorAll('.ui-btn'); b[b.length - 1]?.click(); }

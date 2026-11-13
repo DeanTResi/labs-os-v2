@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Drive index.html in headless Chrome and take screenshots. Uses the zero-dependency CDP client.
+// Drive index.html in headless Chrome and take screenshots, through tools/cdp.mjs (no dependencies).
 //
 //   node tools/shot.mjs [--file build/x.html] [--port 9301] [--w 1440] [--h 900] [--scale 1] [--headed] "<query>" step step ...
 //
@@ -14,7 +14,7 @@
 //   clicksel:<selector> click the centre of an element
 //   shot:<path.png>     screenshot the viewport
 // Page errors and failed requests print at the end. Exit code 1 when the page threw.
-import { launch } from '/Users/dt/.claude/skills/chrome-automation/cdp.mjs';
+import { launch } from './cdp.mjs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 

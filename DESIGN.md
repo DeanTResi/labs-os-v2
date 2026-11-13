@@ -22,7 +22,8 @@ src/apps/             one file per app (some apps have two), each wrapped in an 
 src/start.js          boot, then the first windows
 tools/build.py        src/ -> index.html, with checks
 tools/build_assets.py icons, Bricky and the 3.1 build -> src/kernel/00_assets.js
-tools/shot.mjs        drives the page in headless Chrome over CDP and takes screenshots
+tools/shot.mjs        drives the page in headless Chrome and takes screenshots
+tools/cdp.mjs         the Chrome DevTools Protocol client shot.mjs uses (no dependencies; set CHROME_PATH if Chrome is elsewhere)
 ```
 
 | Kernel unit | File | What it does |
@@ -40,7 +41,7 @@ tools/shot.mjs        drives the page in headless Chrome over CDP and takes scre
 | overlays | `11_overlays.js` | the launcher, the Labs menu, the key sheet, the notification list |
 | session | `12_session.js` | Bricky, the lock screen, the screensaver, idle, the boot loader and boot log, shut down |
 | wallpaper | `13_wallpaper.js` | six wallpapers drawn in code at screen size |
-| keys | `14_keys.js` | global bindings. SUPER is Alt, because browsers keep the real Super key |
+| keys | `14_keys.js` | global bindings. SUPER is Alt, because browsers keep the real Super key. In a text field, characters that Option types on a Mac (`#` `@` `[` `]` `{` `}` `\|`) win over SUPER, and Ctrl+Alt+digit still switches workspace |
 
 ### Choices
 

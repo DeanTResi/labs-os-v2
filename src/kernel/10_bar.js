@@ -85,8 +85,8 @@
     for (const s of samples) spark.append(h('i', { style: { height: Math.max(2, Math.min(12, (s / 33) * 12)) + 'px' } }));
   }, 700);
 
-  const net = mod('dim hide-mid', 'Network', () => OS.notify({ app: 'network', icon: 'wave', title: 'Connected: planning-portal (5 GHz)', body: 'Signal: strong. Latency: eight weeks. Determination period: also eight weeks.' }));
-  net.append(icon('wifi'), 'planning-portal');
+  const net = mod('dim hide-mid', 'Network', () => OS.notify({ app: 'network', icon: 'wave', title: 'Connected: council-guest (5 GHz)', body: 'Signal: strong. Latency: eight weeks. Determination period: also eight weeks.' }));
+  net.append(icon('wifi'), 'council-guest');
 
   const snd = mod('dim', 'Sound', () => { OS.sound.set(!OS.sound.on); drawSnd(); OS.osd(OS.sound.on ? 'sound on' : 'sound off'); });
   function drawSnd() { snd.innerHTML = ''; snd.append(icon(OS.sound.on ? 'volume' : 'mute')); }

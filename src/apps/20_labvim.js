@@ -344,7 +344,7 @@
     Object.assign(S, {
       mode: 'dashboard', lines: [''], cy: 0, cx: 0, want: 0, top: 0, left: 0,
       path: null, ft: 'text', eol: true, saved: '', modified: false, orig: new Set(), readonly: null,
-      undo: [], redo: [], seq: 0, reg: { text: '', linewise: false },
+      undo: [], redo: [], seq: 0, pend: null, reg: { text: '', linewise: false },
       count: '', op: null, opCount: '', prefix: '', escs: 0,
       cmd: '', cmdType: ':', hist: OS.store.get('labvim.hist', []), histAt: -1,
       search: '', searchDir: 1, hl: false, msg: null, number: true, rnu: false,
@@ -373,11 +373,19 @@
     };
     const msg = (t, k = '') => { S.msg = { t, k }; };
     const changed = () => { S.dirty = true; S.modified = text() !== S.saved; updateTitle(); };
-    function snap() {
-      S.undo.push({ lines: S.lines.slice(), cy: S.cy, cx: S.cx });
+    function snap(st = { lines: S.lines.slice(), cy: S.cy, cx: S.cx }) {
+      S.undo.push(st);
       if (S.undo.length > 400) S.undo.shift();
       S.redo = [];
       S.seq++;
+    }
+    // Insert mode entered without a change: the undo step is taken at the first change, so an empty insert leaves undo and redo alone.
+    function pend() { S.pend = { lines: S.lines.slice(), cy: S.cy, cx: S.cx }; }
+    function keepPend() {
+      const p = S.pend;
+      if (!p || (p.lines.length === S.lines.length && p.lines.every((l, i) => l === S.lines[i]))) return;
+      S.pend = null;
+      snap(p);
     }
     function restore(from, to, word) {
       const st = from.pop();
@@ -404,7 +412,7 @@
       S.lines = ls.length ? ls : [''];
       S.path = p; S.ft = filetype(p, S.lines[0]); S.readonly = readonlyWhy(p);
       S.saved = text(); S.modified = false; S.orig = new Set(S.lines);
-      S.cy = 0; S.cx = 0; S.want = 0; S.top = 0; S.left = 0; S.undo = []; S.redo = []; S.seq = 0; S.dirty = true;
+      S.cy = 0; S.cx = 0; S.want = 0; S.top = 0; S.left = 0; S.undo = []; S.redo = []; S.seq = 0; S.pend = null; S.dirty = true;
       S.mode = 'normal';
       updateTitle();
     }
@@ -432,10 +440,11 @@
 
     function goldCrash(p) {
       const m = /^\/gold\/houses\/(\d+)\//.exec(p);
-      const target = `${HOME}/gold-overrides/${m ? m[1] + '.yml' : OS.fs.basename(p)}`;
+      const target = `${HOME}/gold-overrides/${m ? m[1] + '.labvim.yml' : OS.fs.basename(p)}`;
       win.crash({
         title: 'E212: gold is never edited, only overridden', code: 'E212 GOLD_IS_READ_ONLY', icon: 'padlock',
-        lines: [`${disp(p)} is gold. People wrote it and people checked it.`, 'labvim can write this buffer as an override instead, at:', disp(target)],
+        lines: [`${disp(p)} is gold. People wrote it and people checked it.`, 'labvim can write this buffer as an override instead, at:', disp(target),
+          ...(m ? [`Not ${m[1]}.yml. That name is the Gold Labeller's, and a copy of this file does not label house ${m[1]}.`] : [])],
         actions: [
           {
             label: 'Write the override', primary: true,
@@ -443,7 +452,7 @@
               try { OS.fs.mkdir(OS.fs.dirname(target), { parents: true }); OS.fs.write(target, text()); } catch (e) { msg(`E212: ${e.message}`, 'err'); render(); return; }
               S.path = target; S.readonly = null; S.saved = text(); S.modified = false;
               addRecent(target); updateTitle();
-              msg(`"${disp(target)}" written. Gold is unchanged.`, 'ok');
+              msg(`"${disp(target)}" written. Gold is unchanged.${m ? ' The Gold Labeller does not count it.' : ''}`, 'ok');
               render(); win.after(0, focusInput);
             },
           },
@@ -668,6 +677,7 @@
       S.reg = { text: s.slice(a, b), linewise: false };
       S.lines[S.cy] = s.slice(0, a) + s.slice(b);
       S.cx = a; clampX(); changed();
+      return true;
     }
     function replaceChars(ch, n) {
       const s = line();
@@ -678,7 +688,7 @@
     }
     function startInsert(how) {
       if (S.readonly) msg('W10: Warning: Changing a readonly file', 'warn');
-      snap();
+      if (how === 'o' || how === 'O') snap(); else pend();
       S.mode = 'insert';
       if (how === 'a' && line().length) S.cx++;
       if (how === 'A') S.cx = line().length;
@@ -702,6 +712,7 @@
         S.cx += ch.length;
       }
       S.want = vcol(S.cy, S.cx);
+      keepPend();
       changed();
     }
     function newline(indent) {
@@ -731,7 +742,7 @@
         else if (S.cy < S.lines.length - 1) S.lines.splice(S.cy, 2, s + line(S.cy + 1));
       } else if (k === '<CR>') newline(true);
       else if (k === '<Tab>') { const n = IW - (vcol(S.cy, S.cx) % IW); S.lines[S.cy] = s.slice(0, S.cx) + ' '.repeat(n) + s.slice(S.cx); S.cx += n; }
-      else if (k === '<C-w>') { const m = /(\w+|[^\w\s]+)?\s*$/.exec(s.slice(0, S.cx)); const n = m ? m[0].length || 1 : 1; S.lines[S.cy] = s.slice(0, S.cx - n) + s.slice(S.cx); S.cx = Math.max(0, S.cx - n); }
+      else if (k === '<C-w>') { if (S.cx === 0) { insKey('<BS>'); return; } const m = /(\w+|[^\w\s]+)?\s*$/.exec(s.slice(0, S.cx)); const n = m ? m[0].length || 1 : 1; S.lines[S.cy] = s.slice(0, S.cx - n) + s.slice(S.cx); S.cx = Math.max(0, S.cx - n); }
       else if (k === '<C-u>') { const ind = /^\s*/.exec(s)[0].length; const to = S.cx > ind ? ind : 0; S.lines[S.cy] = s.slice(0, to) + s.slice(S.cx); S.cx = to; }
       else if (k === '<Left>') S.cx = Math.max(0, S.cx - 1);
       else if (k === '<Right>') S.cx = Math.min(s.length, S.cx + 1);
@@ -740,6 +751,7 @@
       else if (k === '<End>') S.cx = s.length;
       else return;
       S.want = vcol(S.cy, S.cx);
+      keepPend();
       changed();
     }
 
@@ -794,11 +806,14 @@
       let re;
       const fl = (flags.includes('g') ? 'g' : '') + (flags.includes('i') ? 'i' : '');
       try { re = new RegExp(pat, fl); } catch { re = new RegExp(escRe(pat), fl); }
-      const expand = (args) => rep.replace(/\\(\d|&|\\)|&/g, (t, g1) => {
-        if (t === '&') return args[0];
-        if (g1 === '&' || g1 === '\\') return g1;
-        return args[Number(g1)] ?? '';
-      });
+      const expand = (args) => {
+        const groups = args.length - (typeof args.at(-1) === 'object' ? 4 : 3);
+        return rep.replace(/\\(\d|&|\\)|&/g, (t, g1) => {
+          if (t === '&') return args[0];
+          if (g1 === '&' || g1 === '\\') return g1;
+          return Number(g1) <= groups ? args[Number(g1)] ?? '' : '';
+        });
+      };
       let total = 0; let touched = 0; let last = -1;
       const next = S.lines.slice();
       for (let y = y1; y <= y2; y++) {
@@ -927,7 +942,7 @@
       if (!op) { moveTo(m); return; }
       const before = S.undo.length;
       applyOp(op, m);
-      if (op === 'c' && S.mode !== 'insert' && S.undo.length === before) { snap(); S.mode = 'insert'; }
+      if (op === 'c' && S.mode !== 'insert' && S.undo.length === before) { pend(); S.mode = 'insert'; }
     }
     function scrollBy(rowsN, moveCursor) {
       S.top = OS.clamp(S.top + rowsN, 0, Math.max(0, S.lines.length - 1));
@@ -957,7 +972,7 @@
       const half = Math.max(1, Math.floor(S.rows / 2));
       switch (k) {
         case 'i': case 'a': case 'I': case 'A': case 'o': case 'O': startInsert(k); break;
-        case 's': delChars(n, false); S.mode = 'insert'; break;
+        case 's': if (!delChars(n, false)) pend(); S.mode = 'insert'; break;
         case 'S': opLines('c', S.cy, Math.min(S.lines.length - 1, S.cy + n - 1)); break;
         case 'x': case '<Del>': delChars(n, false); break;
         case 'X': delChars(n, true); break;
@@ -1166,7 +1181,7 @@
       if (m === 'finder') { finderKey(k); return; }
       if (m === 'command' || m === 'search') { cmdKey(k); return; }
       if (m === 'insert') {
-        if (k === '<Esc>' || k === '<C-c>') { S.mode = 'normal'; S.cx = Math.max(0, S.cx - 1); clampX(); S.want = vcol(S.cy, S.cx); return; }
+        if (k === '<Esc>' || k === '<C-c>') { S.mode = 'normal'; S.pend = null; S.cx = Math.max(0, S.cx - 1); clampX(); S.want = vcol(S.cy, S.cx); return; }
         if (k.length > 1 && k[0] === '<') { insKey(k); return; }
         insText(k, raw);
         return;
@@ -1194,7 +1209,7 @@
       if (v) feed([...v], v.length > 1);
     });
     ta.addEventListener('compositionend', () => { const v = ta.value; ta.value = ''; if (v) feed([...v], true); });
-    const focusInput = () => { if (!win.closed && document.activeElement !== ta && !win.body.querySelector('.ui-crash')) ta.focus({ preventScroll: true }); };
+    const focusInput = () => { if (!win.closed && document.activeElement !== ta && !win.el.querySelector('.ui-crash')) ta.focus({ preventScroll: true }); };
 
     // ---------- render ----------
     function lineHtml(s, ft, st, left, ncols, re, ig) {

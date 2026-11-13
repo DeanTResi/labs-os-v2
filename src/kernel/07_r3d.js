@@ -96,12 +96,11 @@
       const P = (px, pz) => [px, H(px, pz), pz];
       const faces = [{ pts: [P(x, z), P(x, z1), P(x1, z1), P(x1, z)], kind: 'slope' }];
       const sides = { z0: [[x, z], [x1, z]], z1: [[x1, z1], [x, z1]], x0: [[x, z1], [x, z]], x1: [[x1, z], [x1, z1]] };
-      for (const [k, [a, b]] of Object.entries(sides)) {
+      for (const [a, b] of Object.values(sides)) {
         const pa = P(...a); const pb = P(...b);
         if (pa[1] === y && pb[1] === y) continue;
         if (pa[1] > y && pb[1] > y) faces.push({ pts: [[a[0], y, a[1]], [b[0], y, b[1]], pb, pa], kind: 'wall' });
         else faces.push({ pts: [[a[0], y, a[1]], [b[0], y, b[1]], pa[1] > y ? pa : pb], kind: 'gable' });
-        void k;
       }
       return solid(faces, { color, ...opts });
     },
@@ -167,7 +166,7 @@
         cam.dist = OS.clamp((r / Math.sin(cam.fov / 2)) * pad / aspect, opts.minDist, opts.maxDist);
         this.request();
       },
-      autoRotate(speed) { rotating = speed; if (speed) loop(); },
+      autoRotate(speed) { const was = rotating; rotating = speed; if (speed && !was) { lastT = 0; requestAnimationFrame(loop); } },
       pick(clientX, clientY) {
         const r = canvas.getBoundingClientRect();
         const dpr = canvas.width / (r.width || 1);

@@ -8,6 +8,7 @@
     ['Alt+Enter', 'Terminal (brickty)'], ['Alt+Shift+Space', 'Labs menu'],
     ['Alt+W', 'Close window'], ['Alt+F', 'Fullscreen'], ['Alt+T', 'Float or tile'], ['Alt+M', 'Cycle layout: dwindle, master, monocle'],
     ['Alt+1..9', 'Go to workspace'], ['Alt+Shift+1..9', 'Move window to workspace'],
+    ['Ctrl+Alt+1..9', 'Go to workspace, even where Option+3 types #'],
     ['Alt+H J K L', 'Focus left, down, up, right (arrows work too)'], ['Alt+Shift+H J K L', 'Swap with the window in that direction'],
     ['Alt+Ctrl+← →', 'Resize the first split'], ['Alt+Esc', 'Lock (deadlock)'],
     ['Alt+/', 'This sheet'], ['Alt+N', 'Notifications'], ['Alt+B', 'Bricky says a thing'],
@@ -16,11 +17,16 @@
     ['Drag a title bar', 'Swap tiles, or move a floating window'], ['Double-click a title bar', 'Fullscreen'],
   ];
 
+  // Characters that Option types on Mac keyboards (# on UK, @ [ ] { } | on German). In a text field they win.
+  const TYPED = new Set(['#', '@', '[', ']', '{', '}', '|', '\\', '~', '€', '£', '`', '^']);
+
   function binding(e) {
     const f = OS.wm.focused();
     const shift = e.shiftKey; const ctrl = e.ctrlKey;
     if (ctrl && (e.code === 'ArrowLeft' || e.code === 'ArrowRight')) { OS.wm.resize(e.code === 'ArrowLeft' ? -0.05 : 0.05); return true; }
+    if (ctrl && e.code.startsWith('Digit') && e.code !== 'Digit0') { OS.wm.switchWs(Number(e.code.slice(5))); return true; }
     if (ctrl) return false;
+    if (editable(document.activeElement) && TYPED.has(e.key)) return false;
     if (e.code === 'Space') { if (shift) OS.ui.menu(); else OS.ui.launcher(); return true; }
     if (e.code === 'Enter') { OS.open('terminal', undefined, { float: shift }); return true; }
     if (e.code.startsWith('Digit') && e.code !== 'Digit0') {

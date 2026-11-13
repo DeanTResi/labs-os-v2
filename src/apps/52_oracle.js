@@ -14,7 +14,12 @@
   const TYPES = OS.data.extensionTypes;
   const WIDTH = OS.data.displayWidthM;
   const n1 = (v) => (Math.round(v * 10) / 10).toFixed(1).replace(/\.0$/, '');
-  const m = (v) => `${n1(v)} m`;
+  // Within 0.1 of a limit, one decimal would show a fail as a tie: show two decimals there (three under 5 mm).
+  const nAt = (v, ...lims) => { const d = Math.min(...lims.map((l) => Math.abs(v - l))); return d === 0 || d > 0.0999 ? n1(v) : v.toFixed(d < 0.005 ? 3 : 2); };
+  const NEAR = { depth: [3, 4], height: [4], eaves: [3], boundary: [2] };
+  const mOf = (x, k) => `${nAt(x[k], ...NEAR[k])} m`;
+  const gap = (d) => (d > 0.0999 ? `${n1(d)} m` : d >= 0.005 ? `${Math.round(d * 100)} cm` : d >= 0.0005 ? `${Math.round(d * 1000)} mm` : 'under 1 mm');
+  const vsLimit = (v, lim) => (v === lim ? 'Exactly at the limit.' : v < lim ? `${gap(lim - v)} to spare.` : `${gap(v - lim)} over.`);
   const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
   // ---------- the rules ----------
@@ -32,28 +37,29 @@
     else if (x.depth == null || x.garden == null) add('A.1(b)', 'Half the curtilage', 'half the garden', x.depth == null ? 'depth not given' : 'garden not given', 'unknown', 'Can\'t tell becomes unknown.');
     else {
       const area = x.depth * WIDTH; const half = x.garden / 2;
-      add('A.1(b)', 'Half the curtilage', `${n1(half)} m²`, `${n1(area)} m²`, area <= half ? 'pass' : 'fail', `${n1(x.depth)} × ${WIDTH} m. The width is a display convention.`);
+      add('A.1(b)', 'Half the curtilage', `${nAt(half, area)} m²`, `${nAt(area, half)} m²`, area <= half ? 'pass' : 'fail', `${nAt(x.depth, ...NEAR.depth, half / WIDTH)} × ${WIDTH} m. The width is a display convention.`);
     }
     // A.1(f): rear depth
     if (!rear) add('A.1(f)', 'Rear depth', '3 m, or 4 m detached', loft ? 'no depth' : 'not a rear extension', 'n/a', loft ? 'A loft has no depth, only volume.' : 'The rear depth limit applies to rear extensions.');
     else if (x.depth == null) add('A.1(f)', 'Rear depth', '3 m, or 4 m detached', 'not given', 'unknown', 'Can\'t tell becomes unknown.');
     else if (x.detached == null) {
       const r = x.depth <= 3 ? 'pass' : x.depth > 4 ? 'fail' : 'unknown';
-      add('A.1(f)', 'Rear depth', '3 m, or 4 m detached', m(x.depth), r, 'Detached or not was not given.');
+      add('A.1(f)', 'Rear depth', '3 m, or 4 m detached', mOf(x, 'depth'), r, 'Detached or not was not given.');
     } else {
       const lim = x.detached ? 4 : 3;
-      add('A.1(f)', 'Rear depth', `${lim} m (${x.detached ? 'detached' : 'not detached'})`, m(x.depth), x.depth <= lim ? 'pass' : 'fail', x.depth === lim ? 'Exactly at the limit.' : x.depth < lim ? `${n1(lim - x.depth)} m to spare.` : `${n1(x.depth - lim)} m over.`);
+      add('A.1(f)', 'Rear depth', `${lim} m (${x.detached ? 'detached' : 'not detached'})`, mOf(x, 'depth'), x.depth <= lim ? 'pass' : 'fail', vsLimit(x.depth, lim));
     }
     // A.1(f) and (j): single-storey height
-    if (loft) add('A.1(f)', 'Height', '4 m single storey', 'a loft', 'n/a', 'Lofts are Class B. The Oracle was asked about Class A.');
-    else if (x.height == null) add('A.1(f)', 'Height', '4 m single storey', 'not given', 'unknown', 'Can\'t tell becomes unknown.');
-    else add('A.1(f)', 'Height', '4 m single storey', m(x.height), x.height <= 4 ? 'pass' : 'fail', x.height === 4 ? 'Exactly at the limit.' : x.height < 4 ? `${n1(4 - x.height)} m to spare.` : `${n1(x.height - 4)} m over.`);
+    const hId = side ? 'A.1(j)' : 'A.1(f)';
+    if (loft) add(hId, 'Height', '4 m single storey', 'a loft', 'n/a', 'Lofts are Class B. The Oracle was asked about Class A.');
+    else if (x.height == null) add(hId, 'Height', '4 m single storey', 'not given', 'unknown', 'Can\'t tell becomes unknown.');
+    else add(hId, 'Height', '4 m single storey', mOf(x, 'height'), x.height <= 4 ? 'pass' : 'fail', vsLimit(x.height, 4));
     // A.1(i): eaves within 2 m of a boundary
     if (loft) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', 'a loft', 'n/a', 'A loft has the eaves it already had.');
     else if (x.boundary == null) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', 'boundary not given', 'unknown', 'Can\'t tell becomes unknown.');
-    else if (x.boundary > 2) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', `${m(x.boundary)} away`, 'pass', 'More than 2 m away, so the limit does not apply.');
+    else if (x.boundary > 2) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', `${mOf(x, 'boundary')} away`, 'pass', 'More than 2 m away, so the limit does not apply.');
     else if (x.eaves == null) add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', 'eaves not given', 'unknown', 'Can\'t tell becomes unknown.');
-    else add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', `${m(x.eaves)} at ${m(x.boundary)}`, x.eaves <= 3 ? 'pass' : 'fail', x.eaves <= 3 ? 'Within 2 m, and low enough.' : `${n1(x.eaves - 3)} m too high this close to the boundary.`);
+    else add('A.1(i)', 'Eaves near a boundary', '3 m within 2 m', `${mOf(x, 'eaves')} at ${mOf(x, 'boundary')}`, x.eaves <= 3 ? 'pass' : 'fail', x.eaves <= 3 ? 'Within 2 m, and low enough.' : `${gap(x.eaves - 3)} too high this close to the boundary.`);
     // A.2: conservation areas
     if (!x.conservation) add('A.2', 'Conservation area', 'no side extensions', 'not in one', 'pass', 'Not Article 2(3) land.');
     else if (side || x.type === 'Wraparound') add('A.2', 'Conservation area', 'no side extensions', `${x.type.toLowerCase()} in one`, 'fail', 'Side extensions are not permitted development there.');
@@ -83,10 +89,10 @@
     const terse = e.key === 'low';
     const desc = [
       x.type.toLowerCase(),
-      x.depth != null ? `${m(x.depth)} deep` : 'depth not given',
-      x.height != null ? `${m(x.height)} high` : 'height not given',
-      x.eaves != null ? `eaves ${m(x.eaves)}` : 'eaves not given',
-      x.boundary != null ? `${m(x.boundary)} from the boundary` : 'boundary distance not given',
+      x.depth != null ? `${mOf(x, 'depth')} deep` : 'depth not given',
+      x.height != null ? `${mOf(x, 'height')} high` : 'height not given',
+      x.eaves != null ? `eaves ${mOf(x, 'eaves')}` : 'eaves not given',
+      x.boundary != null ? `${mOf(x, 'boundary')} from the boundary` : 'boundary distance not given',
       x.detached == null ? 'detached or not, not given' : x.detached ? 'detached' : 'not detached',
     ].join(', ');
     say(terse ? `A ${desc}.` : `The question is about a ${desc}. ${x.conservation ? 'In a conservation area.' : 'Not in a conservation area.'} ${x.article4 ? 'An Article 4 direction is in force.' : 'No Article 4 direction.'}`);
@@ -107,7 +113,7 @@
         switch (r.name) {
           case 'Half the curtilage':
             t = r.result === 'n/a' ? `${r.id}, half the curtilage. ${r.note} ${res}` : r.result === 'unknown' ? `${r.id}, half the curtilage. ${cap(r.yours)}. ${r.note} ${res}`
-              : `${r.id}, half the curtilage. No width is given. The configurator draws every extension ${WIDTH} m wide, as a display convention. I will treat it as a spec. ${n1(x.depth)} × ${WIDTH} is ${r.yours}. Half the garden is ${r.limit}. ${res}`;
+              : `${r.id}, half the curtilage. No width is given. The configurator draws every extension ${WIDTH} m wide, as a display convention. I will treat it as a spec. ${nAt(x.depth, ...NEAR.depth, x.garden / 2 / WIDTH)} × ${WIDTH} is ${r.yours}. Half the garden is ${r.limit}. ${res}`;
             break;
           case 'Rear depth': t = r.result === 'n/a' ? `${r.id}, rear depth. ${r.note} ${res}` : `${r.id}, rear depth. Limit ${r.limit}; this one is ${r.yours}. ${r.note} ${res}`; break;
           case 'Height': t = r.result === 'unknown' || r.result === 'n/a' ? `${r.id}, height. ${cap(r.yours)}. ${r.note} ${res}` : `${r.id}, height. ${r.yours} against ${r.limit}. ${r.note} ${res}`; break;
@@ -117,8 +123,8 @@
         }
         say(t.replace(/\s+/g, ' ').trim(), settle);
         if (pass === 1 && (e.key === 'high' || e.key === 'xhigh' || e.key === 'max')) {
-          if (r.name === 'Rear depth' && x.depth != null && r.result !== 'n/a') say(`Wait. Is the rear the rear? Left and right are as seen from the street, so the rear is as seen from the garden. Yes. ${m(x.depth)} still.`);
-          if (r.name === 'Height' && r.result === 'pass') say('The larger home extension scheme allows more, with prior approval. Nobody asked for prior approval. Moving on.');
+          if (r.name === 'Rear depth' && x.depth != null && r.result !== 'n/a') say(`Wait. Is the rear the rear? Left and right are as seen from the street, so the rear is as seen from the garden. Yes. ${mOf(x, 'depth')} still.`);
+          if (r.name === 'Rear depth' && r.result === 'pass') say('The larger home extension scheme allows more depth, with prior approval. Nobody asked for prior approval. Moving on.');
         }
         if (pass === 1 && (e.key === 'xhigh' || e.key === 'max')) {
           if (r.name === 'Half the curtilage' && r.result !== 'n/a') say(`Converting to millimetres to be safe: ${x.depth != null ? Math.round(x.depth * 1000).toLocaleString('en-GB') : 'unknown'} mm deep. The result is the same in millimetres.`);
@@ -144,11 +150,11 @@
     else if (/\b(loft|dormer)\b/.test(s)) x.type = 'Loft';
     else if (/\b(rear|back)\b/.test(s)) x.type = 'Rear extension';
     else { x.type = 'Rear extension'; x.notes.push('type not given: assumed rear'); }
-    if (/semi|terrace/.test(s)) x.detached = false;
+    if (/\b(not|non)[\s-]+detached\b/.test(s) || /semi|terrace/.test(s)) x.detached = false;
     else if (/\bdetached\b/.test(s)) x.detached = true;
     x.conservation = /conservation/.test(s) && !/(not|no|outside)\s+(?:in\s+)?(?:a\s+)?conservation/.test(s);
     x.article4 = /article\s*4/.test(s) && !/(no|not|without)\s+(?:an?\s+)?article\s*4/.test(s);
-    const re = /(\d+(?:\.\d+)?)\s*(mm|cm|m²|m2|sq ?m|m)?\b/g;
+    const re = /(\d+(?:\.\d+)?)\s*(mm|cm|m²|m2|sq ?m|m)?(?![\w²])/g;
     let mt; const loose = [];
     while ((mt = re.exec(s))) {
       let v = Number(mt[1]); const unit = mt[2] || '';
@@ -166,7 +172,7 @@
     for (const v of loose) {
       const k = ['depth', 'height'].find((key) => x[key] == null);
       if (!k) break;
-      x[k] = v; x.notes.push(`${n1(v)} m read as ${k}`);
+      x[k] = v; x.notes.push(`${mOf(x, k)} read as ${k}`);
     }
     return x;
   }
@@ -310,7 +316,7 @@
         syncCli();
       }
       function describe() {
-        return `${n1(F.depth)}m ${F.type.toLowerCase()}, ${n1(F.height)}m high, eaves ${n1(F.eaves)}m, ${n1(F.boundary)}m from the boundary, ${F.detached ? 'detached' : 'semi'}${F.conservation ? ', conservation area' : ''}${F.article4 ? ', article 4' : ''}, ${Math.round(F.garden)}m2 garden`;
+        return `${nAt(F.depth, ...NEAR.depth)}m ${F.type.toLowerCase()}, ${nAt(F.height, ...NEAR.height)}m high, eaves ${nAt(F.eaves, ...NEAR.eaves)}m, ${nAt(F.boundary, ...NEAR.boundary)}m from the boundary, ${F.detached ? 'detached' : 'semi'}${F.conservation ? ', conservation area' : ''}${F.article4 ? ', article 4' : ''}, ${n1(F.garden)}m2 garden`;
       }
       function syncCli() {
         cli.innerHTML = `Or from brickty:<br><code>${OS.esc(`oracle "${describe()}"${F.effort !== 'medium' ? ` --effort ${F.effort}` : ''}`)}</code>`;
@@ -337,8 +343,8 @@
         const paras = think(x, ev, e.key);
         const v = verdict(ev);
         out.innerHTML = '';
-        out.append(h('div', { class: 'or-q' }, `${x.type}, ${m(x.depth)} deep, ${m(x.height)} high. Is it permitted development?`,
-          h('small', null, `eaves ${m(x.eaves)} · ${m(x.boundary)} to the boundary · ${x.detached ? 'detached' : 'semi or terrace'} · garden ${Math.round(x.garden)} m²${x.conservation ? ' · conservation area' : ''}${x.article4 ? ' · Article 4' : ''}`)));
+        out.append(h('div', { class: 'or-q' }, `${x.type}, ${mOf(x, 'depth')} deep, ${mOf(x, 'height')} high. Is it permitted development?`,
+          h('small', null, `eaves ${mOf(x, 'eaves')} · ${mOf(x, 'boundary')} to the boundary · ${x.detached ? 'detached' : 'semi or terrace'} · garden ${n1(x.garden)} m²${x.conservation ? ' · conservation area' : ''}${x.article4 ? ' · Article 4' : ''}`)));
         const label = h('span', { class: 'or-shimmer' }, 'Thinking');
         const cost = h('span', { class: 'cost' }, `${e.key} effort`);
         const body = h('div', { class: 'body' });
@@ -454,8 +460,8 @@
       const ev = evaluate(x);
       const width = Math.max(40, Math.min(100, (io.cols || 100) - 4));
       io.println(`Planning Oracle 2 · ${e.key} effort · ${OS.usd(e.usd)}`, 'accent');
-      const g = (v, u = 'm') => (v == null ? '?' : `${n1(v)} ${u}`);
-      io.println(`read: ${x.type} · depth ${g(x.depth)} · height ${g(x.height)} · eaves ${g(x.eaves)} · boundary ${g(x.boundary)} · garden ${g(x.garden, 'm²')} · ${x.detached == null ? 'detached ?' : x.detached ? 'detached' : 'not detached'} · conservation ${x.conservation ? 'yes' : 'no'} · Article 4 ${x.article4 ? 'yes' : 'no'}`, 'muted');
+      const g = (k) => (x[k] == null ? '?' : mOf(x, k));
+      io.println(`read: ${x.type} · depth ${g('depth')} · height ${g('height')} · eaves ${g('eaves')} · boundary ${g('boundary')} · garden ${x.garden == null ? '?' : `${n1(x.garden)} m²`} · ${x.detached == null ? 'detached ?' : x.detached ? 'detached' : 'not detached'} · conservation ${x.conservation ? 'yes' : 'no'} · Article 4 ${x.article4 ? 'yes' : 'no'}`, 'muted');
       for (const nt of x.notes) io.println(`note: ${nt}`, 'faint');
       const first = OS.spend.add(e.key === 'max' ? e.usd / 3 : e.usd, `oracle ${e.key}: "${text.slice(0, 40)}"`, 'oracle');
       if (!first.ok) { io.println(first.message, 'bad'); io.println('verdict  No. (reached without thinking)', 'bold'); return 1; }

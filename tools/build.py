@@ -6,6 +6,7 @@ The build fails on: a missing source folder, a syntax error (node --check),
 a duplicate app id, an app file that is not wrapped in an IIFE, or a
 top-level declaration that shadows a browser global.
 """
+import os
 import pathlib
 import re
 import subprocess
@@ -59,6 +60,10 @@ def main():
         for m in re.finditer(r"^(?:let|const|var|function)\s+([A-Za-z_$][\w$]*)", f.read_text(), re.M):
             if m.group(1) in GLOBALS:
                 fail(f"{f.relative_to(ROOT)} declares top-level '{m.group(1)}', which shadows a browser global")
+    for f in app_files:
+        m = re.search(r"^(?:let|const|var|function|class)\s+([A-Za-z_$][\w$]*)", f.read_text(), re.M)
+        if m:
+            fail(f"{f.relative_to(ROOT)} declares '{m.group(1)}' at column 0; apps keep every name inside their IIFE")
 
     css = "\n".join(f"/* {f.name} */\n" + f.read_text() for f in css_files)
     js_parts = [f"// ---- {f.relative_to(SRC)}\n" + f.read_text() for f in kernel_files + app_files]
@@ -79,7 +84,7 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html)
     size = out.stat().st_size
-    print(f"{out.relative_to(ROOT)}: {size:,} bytes · {len(css_files)} css · {len(kernel_files)} kernel · "
+    print(f"{os.path.relpath(out, ROOT)}: {size:,} bytes · {len(css_files)} css · {len(kernel_files)} kernel · "
           f"{len(app_files)} app files · {len(ids)} apps: {', '.join(sorted(ids))}")
 
 

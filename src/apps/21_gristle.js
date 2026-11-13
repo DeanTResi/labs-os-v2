@@ -307,7 +307,7 @@
     }
 
     // Comments: TODOs, banned words, comments that repeat the code
-    const mark = { js: '//', css: '/*', ruby: '#', yaml: '#', sh: '#', py: '#', lua: '--' }[lang];
+    const mark = COMMENT_MARK[lang];
     comments.forEach(({ line: i, text: c }) => {
       const m = /\b(TODO|FIXME|XXX|HACK)\b:?\s*(.*)/.exec(c);
       if (m) {
@@ -422,7 +422,7 @@
   const cardText = (m, eyes = eyesFor(m)) => [CARD_HEAD, '', ...octo(eyes), '', 'Gristle', '', ...QUOTE, '', ...stats(m).map(statLine)];
 
   // ---------- targets ----------
-  const costFor = (t) => Math.max(0.03, Math.round((0.02 + t.text.split('\n').length * 0.00003) * 100) / 100);
+  const costFor = (t) => Math.max(0.03, Math.round((0.02 + (t.kind === 'os' ? B.lines.length : t.text.split('\n').length) * 0.00003) * 100) / 100);
   const osTarget = () => ({
     kind: 'os', text: B.text, name: 'labs-os.js', label: 'Labs OS itself', short: 'bundle',
     loc: (i) => { const w = where(i); return `${w.file}:${w.line}`; },
@@ -525,7 +525,7 @@
       io.println();
       if (args.includes('--card')) return 0;
       if (m.left <= 0) {
-        io.println('gristle: PATIENCE is 0. It comes back at 00:00 UTC, as 3. It has never been 4.', 'bad');
+        io.println(`gristle: PATIENCE is 0. It comes back at 00:00 UTC, as ${PATIENCE}. Base PATIENCE is 1. Tomorrow is also a generous day.`, 'bad');
         io.println('Gristle is not reviewing anything else today. This is not about you. It is about the code.', 'muted');
         return 1;
       }
@@ -546,16 +546,17 @@
         status.set(`  ${g}`, 'muted');
       }
       const res = review(t);
-      const was = m.left;
-      m.left -= 1; m.reviews += 1; m.lastTotal = res.total; m.lastHigh = res.counts.High;
-      saveMood(m);
+      const fresh = mood();
+      const was = fresh.left;
+      fresh.left = Math.max(0, fresh.left - 1); fresh.reviews += 1; fresh.lastTotal = res.total; fresh.lastHigh = res.counts.High;
+      saveMood(fresh);
       status.set(`Reviewed ${t.label}: ${fmt(res.lines)} lines, ${res.lang}. Charged ${OS.usd(cost)}.`, 'muted');
       io.println(`${res.total} finding${res.total === 1 ? '' : 's'}: ${res.counts.High} High, ${res.counts.Medium} Medium, ${res.counts.Low} Low. The worst ${CAP} of each kind are shown.`, res.counts.High ? 'bad' : res.counts.Medium ? 'warn' : 'ok');
       io.println();
       if (res.findings.length) (tableLines(res.findings, io.cols || 100) || blockLines(res.findings, io.cols || 100)).forEach((l) => io.println(l.t, l.c));
       io.println();
       io.println(`Gristle says: ${verdict(res, t)}`, 'accent');
-      io.println(statLine(['PATIENCE', m.left]) + `   (was ${was})`, m.left ? 'warn' : 'bad');
+      io.println(statLine(['PATIENCE', fresh.left]) + `   (was ${was})`, fresh.left ? 'warn' : 'bad');
       return res.total ? 1 : 0;
     },
   });
@@ -592,7 +593,7 @@
 .gr-tbl th { text-align: left; color: var(--muted); font-weight: 700; padding: 5px 8px; border-bottom: 1px solid var(--border); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; }
 .gr-tbl td { padding: 7px 8px; border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent); vertical-align: top; white-space: normal; overflow-wrap: anywhere; line-height: 1.45; }
 .gr-tbl tr.go { cursor: pointer; } .gr-tbl tr.go:hover td { background: color-mix(in srgb, var(--sel) 55%, transparent); }
-.gr-tbl .id { color: var(--faint); white-space: nowrap; } .gr-tbl td.loc { color: var(--info); overflow-wrap: normal; word-break: keep-all; } .gr-tbl .why { color: var(--muted); } .gr-tbl .more { color: var(--faint); display: block; margin-top: 2px; }
+.gr-tbl .id { color: var(--faint); white-space: nowrap; } .gr-tbl td.loc { color: var(--info); } .gr-tbl .why { color: var(--muted); } .gr-tbl .more { color: var(--faint); display: block; margin-top: 2px; }
 .gr-tbl tr.fixed td { text-decoration: line-through; opacity: .5; }
 .gr-sev { display: inline-block; padding: 0 7px; border-radius: 4px; font-size: 11px; font-weight: 800; border: 1px solid var(--border); color: var(--muted); }
 .gr-sev.High { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 55%, transparent); background: color-mix(in srgb, var(--bad) 12%, transparent); }
@@ -653,7 +654,7 @@
         card.innerHTML = `<pre>${head}\n\n<span class="oc">${esc(octo(eyes).join('\n'))}</span>\n\n<span class="nm">Gristle</span>\n\n<span class="q">${esc(QUOTE.join('\n'))}</span>\n\n${rows.join('\n')}</pre>`;
         S.shown = st;
         note.innerHTML = m.left > 0
-          ? `PATIENCE: <b>${m.left}</b> of ${PATIENCE} today. Each review uses one and a few cents. It refills at 00:00 UTC and has never been above ${PATIENCE}.`
+          ? `PATIENCE: <b>${m.left}</b> of ${PATIENCE} today. Base PATIENCE is 1. Today is a generous day. Each review uses one, and a few cents. It refills at 00:00 UTC.`
           : `PATIENCE: <b>0</b>. <span class="no">Gristle is not reviewing anything else today.</span> It refills at 00:00 UTC.`;
       }
 
@@ -735,7 +736,7 @@
       function refuse() {
         win.crash({
           title: 'Gristle has no patience left today', code: 'GRS-0x0000 PATIENCE_EXHAUSTED', icon: 'octopus',
-          lines: ['PATIENCE is 0. It comes back at 00:00 UTC, as 3.', 'It has never been 4.', 'Gristle is not reviewing anything else today. This is not about you. It is about the code.'],
+          lines: [`PATIENCE is 0. It comes back at 00:00 UTC, as ${PATIENCE}.`, 'Base PATIENCE is 1. Tomorrow is also a generous day.', 'Gristle is not reviewing anything else today. This is not about you. It is about the code.'],
           actions: [{ label: 'Wait until tomorrow', primary: true, run: () => { OS.spend.tomorrow(); } }, { label: 'OK' }],
         });
       }
@@ -781,9 +782,15 @@
           S.msg = { k: 'ok', t: `Removed trailing whitespace from ${fx.n} line${fx.n === 1 ? '' : 's'} of the pasted code. It is in the box above. Copy it back out yourself.` };
           drawSrc(); drawOut(); return;
         }
+        let now;
+        try { now = OS.fs.read(R.t.path); } catch (e) { S.msg = { k: 'bad', t: e.message }; drawOut(); return; }
+        if (now !== R.t.text) {
+          S.msg = { k: 'bad', t: `Refused. ${disp(R.t.path)} changed after I reviewed it. My line numbers are about a file that is not there any more. Review it again.` };
+          drawOut(); return;
+        }
         try { OS.fs.write(R.t.path, fx.text); } catch (e) { S.msg = { k: 'bad', t: e.message }; drawOut(); return; }
-        R.fixed = true;
-        S.msg = { k: 'ok', t: `Removed trailing whitespace from ${fx.n} line${fx.n === 1 ? '' : 's'} in ${disp(R.t.path)}, and saved it. I have not read it again. Patience is finite.` };
+        R.fixed = true; R.t.text = fx.text;
+        S.msg = { k: 'ok', t: `Removed trailing whitespace from ${fx.n} line${fx.n === 1 ? '' : 's'} in ${disp(R.t.path)}, and saved it. I read it again first. Nobody had touched it.` };
         drawOut();
       }
       S.target = (a) => {
@@ -799,7 +806,13 @@
         drawBar(); drawSrc(); drawOut();
         if (!S.busy) run();
       };
-      S.layout = () => root.classList.toggle('narrow', win.width < 820);
+      // Measured in the side-by-side layout: below 640 px the findings table has no room for its Rationale column.
+      S.layout = () => {
+        const y = root.scrollTop;
+        root.classList.remove('narrow');
+        root.classList.toggle('narrow', right.clientWidth < 640);
+        root.scrollTop = y;
+      };
       S.off = OS.on('spend', () => { drawCard(); drawBar(); });
       win.every(3800, () => {
         if (S.busy || mood().left <= 0) return;
@@ -807,7 +820,7 @@
         win.after(160, () => { S.eyes = null; drawCard(); });
       });
 
-      S.layout(); drawCard(); drawBar(); drawSrc(); drawOut();
+      drawCard(); S.layout(); drawBar(); drawSrc(); drawOut();
       if (arg) S.target(arg);
     },
     onArg(win, arg) { win.state.target?.(arg); },
