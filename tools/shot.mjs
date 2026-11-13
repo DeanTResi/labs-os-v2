@@ -33,10 +33,10 @@ const KEYS = {
   Enter: [13, 'Enter', '\r'], Escape: [27, 'Escape'], Space: [32, 'Space', ' '], Tab: [9, 'Tab'], Backspace: [8, 'Backspace'],
   ArrowUp: [38, 'ArrowUp'], ArrowDown: [40, 'ArrowDown'], ArrowLeft: [37, 'ArrowLeft'], ArrowRight: [39, 'ArrowRight'], Slash: [191, 'Slash', '/'],
 };
-function keyInfo(k) {
+function keyInfo(k, shift = false) {
   if (KEYS[k]) return { code: KEYS[k][1], keyCode: KEYS[k][0], key: k === 'Space' ? ' ' : k === 'Slash' ? '/' : k, text: KEYS[k][2] };
   if (/^[0-9]$/.test(k)) return { code: 'Digit' + k, keyCode: 48 + Number(k), key: k, text: k };
-  if (/^[a-zA-Z]$/.test(k)) return { code: 'Key' + k.toUpperCase(), keyCode: k.toUpperCase().charCodeAt(0), key: k.toLowerCase(), text: k.toLowerCase() };
+  if (/^[a-zA-Z]$/.test(k)) { const ch = shift || k !== k.toLowerCase() ? k.toUpperCase() : k.toLowerCase(); return { code: 'Key' + k.toUpperCase(), keyCode: k.toUpperCase().charCodeAt(0), key: ch, text: ch, upper: ch !== k.toLowerCase() }; }
   throw new Error('unknown key ' + k);
 }
 
@@ -59,8 +59,9 @@ try {
       for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) await s.send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 });
     } else if (verb === 'key') {
       const parts = arg.split('+'); const main = parts.pop();
-      const mods = (parts.includes('Alt') ? 1 : 0) | (parts.includes('Ctrl') ? 2 : 0) | (parts.includes('Meta') ? 4 : 0) | (parts.includes('Shift') ? 8 : 0);
-      const k = keyInfo(main);
+      let mods = (parts.includes('Alt') ? 1 : 0) | (parts.includes('Ctrl') ? 2 : 0) | (parts.includes('Meta') ? 4 : 0) | (parts.includes('Shift') ? 8 : 0);
+      const k = keyInfo(main, !!(mods & 8));
+      if (k.upper) mods |= 8;
       const base = { modifiers: mods, code: k.code, key: k.key, windowsVirtualKeyCode: k.keyCode, nativeVirtualKeyCode: k.keyCode };
       await s.send('Input.dispatchKeyEvent', { type: mods & ~8 ? 'rawKeyDown' : 'keyDown', ...base, text: mods & ~8 ? undefined : k.text });
       await s.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });

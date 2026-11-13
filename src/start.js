@@ -11,6 +11,7 @@
       if (!OS.apps[id]) continue;
       OS.open(id, id === 'terminal' && !p.get('apps') ? { run: 'brickfetch' } : undefined);
     }
+    if (!p.get('apps') && window.innerWidth >= 1200) OS.wm.resize(-0.08); // give the Composer the larger tile
     OS.wm.updateEmpty();
     if (p.get('bricky') !== '0') {
       setTimeout(() => OS.notify({

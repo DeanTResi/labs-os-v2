@@ -131,7 +131,7 @@ const OS = (() => {
   };
   const resi = (typeof OS_ASSETS !== 'undefined' && OS_ASSETS.icons) || {};
   os.icons = { ...resi, ...custom };
-  os.logoSvg = '<svg viewBox="0 0 100 100" aria-label="Labs"><g transform="rotate(-1.4 50 50)"><rect x="3" y="3" width="94" height="94" rx="17" fill="var(--accent)"/></g><path fill="#fff" d="M25.4 28.4L48.4 23.2L50.7 33.4L66.2 29.9L74.8 67.8L36.4 76.6Z"/></svg>';
+  os.logoSvg = '<svg viewBox="0 0 100 100" aria-label="Labs"><g transform="rotate(-1.4 50 50)"><rect x="3" y="3" width="94" height="94" rx="17" fill="#6656D2"/></g><path fill="#fff" d="M25.4 28.4L48.4 23.2L50.7 33.4L66.2 29.9L74.8 67.8L36.4 76.6Z"/></svg>';
   os.icon = (name, cls = '') => `<span class="icon ${cls}">${os.icons[name] || os.icons.question || ''}</span>`;
   os.iconEl = (name, cls = '') => { const s = document.createElement('span'); s.className = 'icon ' + cls; s.innerHTML = os.icons[name] || os.icons.question || ''; return s; };
   os.bricky = (blink = false) => (typeof OS_ASSETS !== 'undefined' ? (blink ? OS_ASSETS.brickyBlink : OS_ASSETS.bricky) : '');

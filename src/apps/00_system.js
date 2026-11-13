@@ -38,7 +38,7 @@
 
   registerApp({
     id: 'about', title: 'About Labs OS', icon: 'labs', desc: 'Version, credits, what changed since 3.1', keywords: ['version', 'credits', 'help'],
-    float: true, size: [560, 520],
+    float: true, size: [600, 640],
     mount(win) {
       const rows = [
         ['Version', `Labs OS ${OS.version} (${OS.codename})`], ['Build', OS.build], ['Compositor', 'brickland (dwindle, master, monocle)'],

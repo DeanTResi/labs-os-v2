@@ -5,7 +5,8 @@
   const L = h('div', { class: 'l' }); const M = h('div', { class: 'm' }); const R = h('div', { class: 'r' });
   bar.append(L, M, R);
 
-  const mod = (cls, title, onclick, ...kids) => h('button', { class: 'bm ' + cls, title, 'aria-label': title, onclick }, ...kids);
+  // onmousedown keeps keyboard focus where it was, so keys still reach the focused window after a bar click.
+  const mod = (cls, title, onclick, ...kids) => h('button', { class: 'bm ' + cls, title, 'aria-label': title, onclick, onmousedown: (e) => e.preventDefault() }, ...kids);
   const icon = (name) => h('span', { html: OS.icon(name) }).firstChild;
 
   // ---- left: logo, workspaces, layout, window title
@@ -13,7 +14,7 @@
   logo.innerHTML = OS.logoSvg;
   const wsBox = h('span', { class: 'ws' });
   const layoutBtn = mod('dim hide-narrow', 'Cycle layout (SUPER+M)', () => OS.wm.cycleLayout());
-  const titleEl = h('span', { class: 'bm dim hide-narrow', style: { cursor: 'default', maxWidth: '28vw', overflow: 'hidden', textOverflow: 'ellipsis' } });
+  const titleEl = h('span', { class: 'bm dim hide-mid', style: { cursor: 'default', maxWidth: '28vw', overflow: 'hidden', textOverflow: 'ellipsis' } });
   L.append(logo, wsBox, layoutBtn, titleEl);
 
   function drawWs() {
@@ -61,7 +62,7 @@
     spend.innerHTML = '';
     spend.append(icon('dollar'), `${s.usd.toFixed(2)}/${s.cap}`);
   }
-  OS.on('spend', drawSpend);
+  OS.on('spend', () => { drawSpend(); tick(); });
 
   const ciStates = [
     { cls: 'good', icon: 'status-complete', text: 'CI', msg: 'All checks passed. Not worse than main.' },
@@ -70,8 +71,8 @@
     { cls: 'bad', icon: 'status-error', text: 'CI', msg: 'Failed: 1 flaky spec. Re-run it. It will pass. Nobody will learn anything.' },
   ];
   let ci = 0;
-  const ciBtn = mod('hide-narrow', 'CI status', () => OS.notify({ app: 'ci', icon: ciStates[ci].icon, title: `CI on main: ${ciStates[ci].cls === 'good' ? 'passing' : ciStates[ci].cls === 'bad' ? 'failing' : 'running'}`, body: ciStates[ci].msg }));
-  function drawCi() { const s = ciStates[ci]; ciBtn.className = 'bm hide-narrow ' + s.cls; ciBtn.innerHTML = ''; ciBtn.append(icon(s.icon), s.text); }
+  const ciBtn = mod('hide-mid', 'CI status', () => OS.notify({ app: 'ci', icon: ciStates[ci].icon, title: `CI on main: ${ciStates[ci].cls === 'good' ? 'passing' : ciStates[ci].cls === 'bad' ? 'failing' : 'running'}`, body: ciStates[ci].msg }));
+  function drawCi() { const s = ciStates[ci]; ciBtn.className = 'bm hide-mid ' + s.cls; ciBtn.innerHTML = ''; ciBtn.append(icon(s.icon), s.text); }
   setInterval(() => { ci = (ci + 1) % ciStates.length; drawCi(); }, 41000 / OS.speed);
 
   const cpu = mod('hide-narrow', 'Frame time. Lower is calmer.', () => OS.open('lanetop'));
@@ -84,7 +85,7 @@
     for (const s of samples) spark.append(h('i', { style: { height: Math.max(2, Math.min(12, (s / 33) * 12)) + 'px' } }));
   }, 700);
 
-  const net = mod('dim hide-narrow', 'Network', () => OS.notify({ app: 'network', icon: 'wave', title: 'Connected: planning-portal (5 GHz)', body: 'Signal: strong. Latency: eight weeks. Determination period: also eight weeks.' }));
+  const net = mod('dim hide-mid', 'Network', () => OS.notify({ app: 'network', icon: 'wave', title: 'Connected: planning-portal (5 GHz)', body: 'Signal: strong. Latency: eight weeks. Determination period: also eight weeks.' }));
   net.append(icon('wifi'), 'planning-portal');
 
   const snd = mod('dim', 'Sound', () => { OS.sound.set(!OS.sound.on); drawSnd(); OS.osd(OS.sound.on ? 'sound on' : 'sound off'); });

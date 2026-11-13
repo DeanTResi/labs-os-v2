@@ -10,12 +10,13 @@
     const note = { app: 'labs', urgency: 'normal', timeout: 6500, ...n, at: OS.now() };
     history.unshift(note); history.length = Math.min(history.length, 60);
     OS.emit('notify', note);
+    note.dismiss = () => {};
     if (dnd && note.urgency !== 'critical') return note;
     const av = note.bricky || (!note.icon && note.app === 'bricky')
       ? h('img', { class: 'pixel', src: OS.bricky(), alt: '' })
       : h('span', { html: OS.icon(note.icon || 'bell') }).firstChild;
     const life = h('div', { class: 'life' });
-    const el = h('div', { class: `note ${note.urgency}`, role: 'status' },
+    const el = h('div', { class: `os-note ${note.urgency}`, role: 'status' },
       h('div', { class: 'av' }, av),
       h('div', null,
         h('div', { class: 'ap' }, note.app),
@@ -28,6 +29,7 @@
     let gone = false;
     const dismiss = () => { if (gone) return; gone = true; el.classList.add('out'); setTimeout(() => el.remove(), 240); };
     el.addEventListener('click', dismiss);
+    note.dismiss = dismiss;
     box.prepend(el);
     while (box.children.length > 4) box.lastChild.remove();
     if (note.urgency !== 'critical' && note.timeout > 0) {

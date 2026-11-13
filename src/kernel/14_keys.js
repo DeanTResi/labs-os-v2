@@ -53,7 +53,9 @@
     if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.code === 'KeyK') { e.preventDefault(); OS.ui.launcher(); return; }
     if (e.altKey && !e.metaKey && binding(e)) { e.preventDefault(); e.stopPropagation(); return; }
     const f = OS.wm.focused();
-    if (f && !editable(document.activeElement)) {
+    const a = document.activeElement;
+    const inWin = !a || a === document.body || (f && f.el.contains(a));
+    if (f && inWin && !editable(a)) {
       f.emit('key', e);
       try { f.app.onKey?.(f, e); } catch (err) { console.error(err); }
     }

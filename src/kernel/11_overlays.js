@@ -32,7 +32,7 @@
       score += 1 + (i === prev + 1 ? 3 : 0) + (i === 0 || /[\s_\-./]/.test(t[i - 1]) ? 2 : 0);
       hits.push(i); prev = i; ti = i + 1;
     }
-    return { score: score - text.length * 0.01, hits };
+    return { score, hits };
   }
   const mark = (text, hits) => {
     const set = new Set(hits); let out = '';
@@ -57,8 +57,9 @@
       crumbs.textContent = stack.length ? 'Labs › ' + stack.join(' › ') + '   (Backspace to go back)' : '';
       crumbs.style.display = stack.length ? '' : 'none';
       const raw = source(q, stack);
-      items = q ? raw.map((it) => ({ it, m: fuzzy(q, it.name + ' ' + (it.match || '')) })).filter((x) => x.m).sort((a, b) => b.m.score - a.m.score).map((x) => ({ ...x.it, hits: x.m.hits.filter((i) => i < x.it.name.length) })) : raw;
-      if (q && !items.length) items = [{ icon: 'bricky-filled', name: `Ask Bricky about "${q}"`, desc: 'He is a brick. He will try.', run: () => OS.brickySay(`"${q}"? I don't know. I'm a brick. Try Alt+Enter and type help.`) }];
+      const literal = q.startsWith('>');
+      items = q && !literal ? raw.map((it) => { const inName = fuzzy(q, it.name); return { it, inName, m: inName || fuzzy(q, it.name + ' ' + (it.match || '')) }; }).filter((x) => x.m).map((x) => ({ ...x, rank: x.m.score + (x.inName ? 3 : 0) + (x.it.app ? 1.5 : 0) - x.it.name.length * 0.01 })).sort((a, b) => b.rank - a.rank).map((x) => ({ ...x.it, hits: x.m.hits.filter((i) => i < x.it.name.length) })) : raw;
+      if (q && !literal && !items.length) items = [{ icon: 'bricky-filled', name: `Ask Bricky about "${q}"`, desc: 'He is a brick. He will try.', run: () => OS.brickySay(`"${q}"? I don't know. I'm a brick. Try Alt+Enter and type help.`) }];
       sel = OS.clamp(sel, 0, Math.max(0, items.length - 1));
       list.innerHTML = '';
       items.forEach((it, i) => {
@@ -93,7 +94,7 @@
 
   // ---------- surveyor: the launcher ----------
   const appItems = () => Object.values(OS.apps).filter((a) => !a.hidden).sort((a, b) => a.name.localeCompare(b.name))
-    .map((a) => ({ icon: a.icon, name: a.name, desc: a.desc, match: (a.keywords || []).join(' ') + ' ' + a.title, run: () => OS.open(a.id) }));
+    .map((a) => ({ app: true, icon: a.icon, name: a.name, desc: a.desc, match: (a.keywords || []).join(' ') + ' ' + a.title, run: () => OS.open(a.id) }));
   const actionItems = () => [
     ...OS.theme.list().map((t) => ({ icon: 'paint-brush', name: `Theme: ${t.label}`, desc: t.blurb, run: () => setTheme(t.name) })),
     ...OS.theme.wallpapers.map((w) => ({ icon: 'layers', name: `Wallpaper: ${w}`, desc: 'Drawn by hand, by code, at your screen size', run: () => OS.theme.setWallpaper(w) })),

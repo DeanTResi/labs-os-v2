@@ -70,6 +70,7 @@
     },
     write(p, content, { persist = true } = {}) {
       p = resolve('/', p);
+      if (p === '/gold' || p.startsWith('/gold/')) throw err('EPERM', `${p}: Read-only file system. Gold is never edited, only overridden.`);
       const parent = node(dirname(p));
       if (!parent || parent.type !== 'dir') throw err('ENOENT', `${dirname(p)}: No such file or directory`);
       const existing = parent.kids.get(basename(p));
@@ -80,6 +81,7 @@
     },
     mkdir(p, { parents = false, persist = true } = {}) {
       p = resolve('/', p);
+      if (p.startsWith('/gold/')) throw err('EPERM', `${p}: Read-only file system. Gold is never edited, only overridden.`);
       if (node(p)) { if (parents) return; throw err('EEXIST', `${p}: File exists`); }
       if (!parents && !fs.isDir(dirname(p))) throw err('ENOENT', `${dirname(p)}: No such file or directory`);
       ensureDir(p);

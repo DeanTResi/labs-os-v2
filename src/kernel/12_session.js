@@ -226,10 +226,39 @@
       el.insertBefore(line, skipEl);
       setTimeout(step, (k === 'wait' ? 520 : 70 + Math.random() * 90) / OS.speed);
     };
-    layer(el, () => { finish(); return true; });
-    el.addEventListener('pointerdown', finish);
+    // The boot menu first: three entries, a countdown, arrows and Enter. Any other key boots the default.
+    const entries = [
+      ['Labs OS 2.0 (Composed)', 'default'],
+      ['Labs OS 3.1 (Evaluation)', 'boots inside 2.0 anyway, through brine'],
+      ['Advanced options for Labs OS 2.0', 'there are no advanced options. there is one option'],
+    ];
+    let sel = 0; let count = 3; let menuOn = true;
+    const menuEl = h('div', { style: { position: 'absolute', inset: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '6px', background: '#000' } });
+    const rows = h('div', { style: { border: '1px solid #555', padding: '8px 0', width: 'min(640px, 90vw)' } });
+    const foot = h('div', { class: 'dim', style: { width: 'min(640px, 90vw)', whiteSpace: 'pre-wrap' } });
+    menuEl.append(h('div', { class: 'hi', style: { marginBottom: '6px' } }, 'BRICK boot loader 2.06'), rows, foot);
+    const paint = () => {
+      rows.innerHTML = '';
+      entries.forEach(([t, d], i) => rows.append(h('div', { style: { padding: '1px 14px', background: i === sel ? '#d6d6d6' : 'none', color: i === sel ? '#000' : '#d6d6d6' } }, (i === sel ? '* ' : '  ') + t + (i === sel ? `   (${d})` : ''))));
+      foot.textContent = `Use ↑ and ↓ to choose, Enter to boot.\nThe highlighted entry boots automatically in ${count}s.`;
+    };
+    const go = () => {
+      if (!menuOn) return;
+      menuOn = false; clearInterval(timer); menuEl.remove();
+      if (sel === 1) { const off = OS.on('ready', () => { off(); setTimeout(() => OS.open('brine'), 300); }); }
+      setTimeout(step, 120 / OS.speed);
+    };
+    const timer = setInterval(() => { count -= 1; if (count <= 0) go(); else paint(); }, 450 / OS.speed);
+    paint();
+    el.append(menuEl);
+    layer(el, (e) => {
+      if (!menuOn) { finish(); return true; }
+      if (e.key === 'ArrowDown') { sel = (sel + 1) % entries.length; count = 9; paint(); return true; }
+      if (e.key === 'ArrowUp') { sel = (sel + entries.length - 1) % entries.length; count = 9; paint(); return true; }
+      go(); return true;
+    });
+    el.addEventListener('pointerdown', () => { if (menuOn) go(); else finish(); });
     document.getElementById('os').classList.add('booting');
-    setTimeout(step, 200 / OS.speed);
   };
 
   OS.shutdown = () => {

@@ -254,20 +254,7 @@
         }
       }
 
-      // Shadows: every face projected to the ground along the light, drawn solid then composited once.
-      if (opts.shadows && faces.length) {
-        if (shadowCanvas.width !== P.W || shadowCanvas.height !== P.H) { shadowCanvas.width = P.W; shadowCanvas.height = P.H; }
-        sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, P.W, P.H); sctx.fillStyle = '#000';
-        for (const f of faces) {
-          if (f.noShadow || f.alpha === 0) continue;
-          const v = f.pts.map((p) => toView(P, [p[0] - (LIGHT[0] * p[1]) / LIGHT[1], 0.001, p[2] - (LIGHT[2] * p[1]) / LIGHT[1]]));
-          if (v.some((q) => q[2] < 0.1)) continue;
-          sctx.beginPath(); v.map((q) => screen(P, q)).forEach(([x, y], i) => (i ? sctx.lineTo(x, y) : sctx.moveTo(x, y))); sctx.fill();
-        }
-        ctx.globalAlpha = th.dark ? 0.32 : 0.16; ctx.drawImage(shadowCanvas, 0, 0); ctx.globalAlpha = 1;
-      }
-
-      // Faces, far to near
+      // Faces, far to near. Faces marked ground: true (lawns, paths, plan tiles) go under the shadows.
       const list = [];
       for (const f of faces) {
         const c = centroid(f.pts);
@@ -282,7 +269,7 @@
       list.sort((a, b) => b.depth - a.depth);
       drawn = [];
       const edgeDefault = th.dark ? 'rgba(0,0,0,.35)' : 'rgba(40,30,60,.28)';
-      for (const { f, v } of list) {
+      const paint = ({ f, v }) => {
         const p2 = v.map((q) => screen(P, q));
         let col = rgb(f.color || '#888888');
         if (!f.emissive) {
@@ -296,7 +283,23 @@
         if (f.glow) { ctx.strokeStyle = f.glow; ctx.lineWidth = 2 * P.dpr; ctx.stroke(); }
         ctx.globalAlpha = 1;
         drawn.push({ face: f, p2 });
+      };
+      list.filter((x) => x.f.ground).forEach(paint);
+
+      // Shadows: every face projected to the ground along the light, drawn solid then composited once.
+      if (opts.shadows && faces.length) {
+        if (shadowCanvas.width !== P.W || shadowCanvas.height !== P.H) { shadowCanvas.width = P.W; shadowCanvas.height = P.H; }
+        sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, P.W, P.H); sctx.fillStyle = '#000';
+        for (const f of faces) {
+          if (f.noShadow || f.ground || f.alpha === 0) continue;
+          const v = f.pts.map((p) => toView(P, [p[0] - (LIGHT[0] * p[1]) / LIGHT[1], 0.001, p[2] - (LIGHT[2] * p[1]) / LIGHT[1]]));
+          if (v.some((q) => q[2] < 0.1)) continue;
+          sctx.beginPath(); v.map((q) => screen(P, q)).forEach(([x, y], i) => (i ? sctx.lineTo(x, y) : sctx.moveTo(x, y))); sctx.fill();
+        }
+        ctx.globalAlpha = th.dark ? 0.32 : 0.16; ctx.drawImage(shadowCanvas, 0, 0); ctx.globalAlpha = 1;
       }
+
+      list.filter((x) => !x.f.ground).forEach(paint);
 
       // Overlay lines and labels, always on top
       for (const l of lines) {
@@ -351,7 +354,7 @@
       cam.dist = OS.clamp(cam.dist * Math.pow(1.0015, e.deltaY), opts.minDist, opts.maxDist);
       view.request(); opts.onCamera?.(cam);
     }
-    function onDbl() { view.fit(); }
+    function onDbl() { if (opts.dblclickFit !== false) view.fit(); }
     canvas.addEventListener('pointerdown', onDown);
     canvas.addEventListener('wheel', onWheel, { passive: false });
     canvas.addEventListener('dblclick', onDbl);

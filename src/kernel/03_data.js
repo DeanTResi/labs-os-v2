@@ -14,7 +14,7 @@
     S('read_rooms', 'Read rooms', 'P6', true, ['floor_boxes'], ['default']),
     S('plan_scale', 'Plan scale', 'P7', false, ['read_rooms', 'floor_outlines'], ['default']),
     S('plan_sheet', 'Plan sheet', 'P14', false, ['orient_plan', 'floor_boxes', 'floor_outlines', 'read_rooms', 'plan_scale'], ['largest_drawing_1']),
-    S('align_floors', 'Align floors', 'P5', false, ['plan_sheet', 'describe_house'], ['default', 'light_walls_1']),
+    S('align_floors', 'Align floors', 'P5', false, ['plan_sheet', 'describe_house'], ['default', 'light_walls_1'], 'light_walls_1'),
     S('projections', 'Projections', 'P13', false, ['plan_sheet', 'align_floors', 'read_rooms'], ['corner_grid_rooms_1']),
     S('floor_cells', 'Floor cells', 'P8', false, ['plan_sheet', 'align_floors', 'describe_house'], ['default', 'snap_below_1'], 'snap_below_1'),
     S('floor_diff', 'Floor diff', 'P12', false, ['floor_cells'], ['default']),

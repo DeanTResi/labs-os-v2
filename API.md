@@ -61,6 +61,7 @@ On `'focus'`, put DOM focus where the user expects to type (the terminal focuses
 OS.open(appId, arg)            // returns the win. Single-instance apps are focused and get onArg(win, arg)
 OS.exec('bin/composer run 158') // opens a terminal and runs the line in it
 OS.notify({ title, body, app, icon, urgency: 'low'|'normal'|'critical', timeout, actions: [{label, run}], bricky: true })
+                               // returns the note; note.dismiss() removes it (critical notes never time out)
 OS.osd('short centred text')   // brief overlay, for mode changes
 OS.crash(win, { title, code, lines: [], details: [], icon, actions: [{label, run, primary}] })
                                // the fail-on-purpose panel, inside your window. Default buttons: OK, Close app.
@@ -158,7 +159,7 @@ view.project([x,y,z])          // -> [cssX, cssY] or null
 view.autoRotate(0.3)           // radians per second-ish; 0 stops
 view.dispose()                 // in unmount
 ```
-Drag orbits, wheel zooms, double-click fits. Re-render after the canvas resizes: call `view.request()` in `onResize`.
+Drag orbits, wheel zooms, double-click fits (`dblclickFit: false` turns that off). A face with `ground: true` (lawn, path) is drawn under the shadows. Re-render after the canvas resizes: call `view.request()` in `onResize`.
 
 ## UI kit (CSS classes, theme-aware)
 
